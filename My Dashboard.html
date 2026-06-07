@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Sunset Serenade">
+<title>Sunset Serenade — Maintenance</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  :root {
+    --ocean:#0a1628; --deep:#06101e; --hull:#0d1f36; --wake:#1a3a5c;
+    --brass:#c8922a; --brass-light:#e8b84b;
+    --danger:#e05c4a; --warn:#d4912a; --good:#3aaa7a;
+    --port:#378add; --stbd:#2db88a; --gen:#d86030;
+    --text:#dde8f0; --text-dim:#7a9bb0;
+    --border:rgba(100,160,200,0.12);
+    --card-bg:rgba(255,255,255,0.04); --card-border:rgba(100,160,200,0.14);
+    --radius:16px; --radius-sm:10px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;background:var(--deep);color:var(--text);font-family:'DM Sans',sans-serif;overflow:hidden;}
+  body::before{content:'';position:fixed;inset:0;background:
+    radial-gradient(ellipse 80% 50% at 50% -10%,rgba(20,60,100,.5) 0%,transparent 70%),
+    radial-gradient(ellipse 60% 40% at 80% 110%,rgba(10,40,80,.4) 0%,transparent 60%);
+    pointer-events:none;z-index:0;}
+  #app{position:relative;z-index:1;height:100vh;height:100dvh;display:flex;flex-direction:column;
+    padding:env(safe-area-inset-top,20px) env(safe-area-inset-right,0) env(safe-area-inset-bottom,0) env(safe-area-inset-left,0);}
+
+  /* HEADER */
+  header{display:flex;align-items:center;justify-content:space-between;padding:14px 20px 10px;border-bottom:.5px solid var(--border);flex-shrink:0;gap:12px;}
+  .vessel-title{display:flex;align-items:baseline;gap:8px;min-width:0;}
+  .vessel-name{font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:2px;color:var(--brass-light);line-height:1;white-space:nowrap;}
+  .vessel-sub{font-size:10px;color:var(--text-dim);letter-spacing:1.5px;text-transform:uppercase;white-space:nowrap;}
+  .header-center{display:flex;gap:14px;align-items:flex-end;}
+  .hr-chip{text-align:right;}
+  .hr-chip .label{font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--text-dim);display:block;}
+  .hr-chip .value{font-family:'DM Mono',monospace;font-size:14px;font-weight:500;}
+  .hr-chip.port .value{color:var(--port);}
+  .hr-chip.stbd .value{color:var(--stbd);}
+  .hr-chip.gen  .value{color:var(--gen);}
+  .header-right{display:flex;flex-direction:column;align-items:flex-end;gap:2px;flex-shrink:0;}
+  #clock-date{font-size:10px;color:var(--text-dim);letter-spacing:.5px;font-family:'DM Mono',monospace;}
+  #clock-time{font-size:16px;font-family:'DM Mono',monospace;color:var(--text);font-weight:500;letter-spacing:1px;}
+
+  /* TABS */
+  .tabs{display:flex;gap:4px;padding:10px 20px 0;flex-shrink:0;}
+  .tab{font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;letter-spacing:.5px;text-transform:uppercase;
+    padding:7px 18px;border-radius:20px;border:.5px solid transparent;background:transparent;color:var(--text-dim);cursor:pointer;transition:all .2s;}
+  .tab.active{background:var(--brass);color:var(--deep);border-color:var(--brass);}
+  .tab:not(.active):hover{border-color:var(--card-border);color:var(--text);}
+
+  /* SCROLL */
+  .scroll-area{flex:1;overflow-y:auto;overflow-x:hidden;padding:16px 20px 32px;-webkit-overflow-scrolling:touch;}
+  .scroll-area::-webkit-scrollbar{display:none;}
+  .view{display:none;} .view.active{display:block;}
+
+  /* METRICS */
+  .metric-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;}
+  @media(max-width:700px){.metric-grid{grid-template-columns:repeat(2,1fr);}}
+  .metric-card{background:var(--card-bg);border:.5px solid var(--card-border);border-radius:var(--radius-sm);padding:14px 16px;}
+  .metric-card .m-label{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text-dim);margin-bottom:6px;}
+  .metric-card .m-value{font-family:'DM Mono',monospace;font-size:22px;font-weight:500;color:var(--text);line-height:1;}
+
+  /* INTERVAL CARDS */
+  .icard{background:var(--card-bg);border:.5px solid var(--card-border);border-radius:var(--radius-sm);padding:14px 16px;position:relative;overflow:hidden;}
+  .icard::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:3px 0 0 3px;}
+  .icard.ok::before{background:var(--good);} .icard.warn::before{background:var(--warn);} .icard.due::before{background:var(--danger);}
+  .icard-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;}
+  .icard-name{font-size:13px;font-weight:500;}
+  .icard-status{font-family:'DM Mono',monospace;font-size:11px;font-weight:500;}
+  .icard.ok .icard-status{color:var(--good);} .icard.warn .icard-status{color:var(--warn);} .icard.due .icard-status{color:var(--danger);}
+  .progress-track{height:4px;background:rgba(255,255,255,.08);border-radius:2px;margin-bottom:6px;}
+  .progress-fill{height:4px;border-radius:2px;transition:width .6s ease;}
+  .icard.ok .progress-fill{background:var(--good);} .icard.warn .progress-fill{background:var(--warn);} .icard.due .progress-fill{background:var(--danger);}
+  .icard-detail{font-size:10px;color:var(--text-dim);display:flex;justify-content:space-between;}
+
+  /* COLLAPSIBLE SECTIONS */
+  .coll-section{margin-bottom:10px;background:var(--card-bg);border:.5px solid var(--card-border);border-radius:var(--radius);overflow:hidden;}
+  .coll-header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;cursor:pointer;user-select:none;-webkit-user-select:none;}
+  .coll-header:hover{background:rgba(255,255,255,.03);}
+  .coll-left{display:flex;align-items:center;gap:12px;}
+  .coll-icon{font-size:18px;width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .coll-title{font-size:14px;font-weight:500;color:var(--text);}
+  .coll-summary{font-size:11px;color:var(--text-dim);margin-top:1px;}
+  .coll-right{display:flex;align-items:center;gap:10px;}
+  .coll-badges{display:flex;gap:5px;}
+  .status-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+  .coll-chevron{font-size:11px;color:var(--text-dim);transition:transform .25s;display:inline-block;}
+  .coll-section.open .coll-chevron{transform:rotate(180deg);}
+  .coll-body{display:none;padding:0 14px 14px;}
+  .coll-section.open .coll-body{display:block;}
+  .coll-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;}
+  @media(max-width:600px){.coll-grid{grid-template-columns:1fr;}}
+  .hrs-row{display:flex;gap:10px;margin-bottom:16px;}
+  .hrs-card{flex:1;background:rgba(255,255,255,.03);border:.5px solid var(--card-border);border-radius:var(--radius-sm);padding:12px 14px;}
+  .hrs-card .h-label{font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--text-dim);display:block;margin-bottom:4px;}
+  .hrs-card .h-value{font-family:'DM Mono',monospace;font-size:20px;font-weight:500;}
+  .hrs-card.port .h-value{color:var(--port);}
+  .hrs-card.stbd .h-value{color:var(--stbd);}
+  .hrs-card.gen  .h-value{color:var(--gen);}
+
+  /* CHART */
+  .chart-card{background:var(--card-bg);border:.5px solid var(--card-border);border-radius:var(--radius);padding:16px;margin-bottom:16px;}
+  .chart-title{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-dim);margin-bottom:14px;}
+  .chart-wrap{position:relative;width:100%;height:240px;}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px;font-size:11px;color:var(--text-dim);}
+  .legend span{display:flex;align-items:center;gap:5px;}
+  .legend-sq{width:8px;height:8px;border-radius:2px;flex-shrink:0;}
+
+  /* FILTER PILLS */
+  .filter-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;align-items:center;}
+  .fpill{font-size:11px;padding:5px 14px;border-radius:16px;border:.5px solid var(--card-border);background:transparent;color:var(--text-dim);cursor:pointer;transition:all .15s;font-family:'DM Sans',sans-serif;}
+  .fpill.active{background:var(--wake);color:var(--text);border-color:rgba(100,160,200,.3);}
+  .fpill[data-sys="Port Engine"].active{border-color:var(--port);color:var(--port);background:rgba(55,138,221,.1);}
+  .fpill[data-sys="Stb Engine"].active{border-color:var(--stbd);color:var(--stbd);background:rgba(45,184,138,.1);}
+  .fpill[data-sys="Generator"].active{border-color:var(--gen);color:var(--gen);background:rgba(216,96,48,.1);}
+  .fpill[data-sys="Engines"].active{border-color:#7f77dd;color:#a09be8;background:rgba(127,119,221,.1);}
+
+  /* LOG TABLE */
+  .log-table-wrap{background:var(--card-bg);border:.5px solid var(--card-border);border-radius:var(--radius);overflow:hidden;}
+  table{width:100%;border-collapse:collapse;font-size:12px;}
+  thead th{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text-dim);padding:10px 12px;
+    border-bottom:.5px solid var(--border);text-align:left;font-weight:500;background:rgba(255,255,255,.02);}
+  tbody td{padding:9px 12px;border-bottom:.5px solid rgba(100,160,200,.06);color:var(--text);}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:hover td{background:rgba(255,255,255,.02);}
+  .sys-dot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:6px;vertical-align:middle;}
+  .mono{font-family:'DM Mono',monospace;font-size:11px;color:var(--text-dim);}
+  .action-badge{font-size:10px;padding:2px 8px;border-radius:10px;font-weight:500;}
+  .action-Replaced{background:rgba(58,170,122,.15);color:var(--good);}
+  .action-Checked{background:rgba(55,138,221,.15);color:var(--port);}
+  .action-Repaired{background:rgba(208,145,42,.15);color:var(--warn);}
+  .action-Inspected{background:rgba(127,119,221,.15);color:#a09be8;}
+  .icon-btn{background:none;border:none;cursor:pointer;padding:3px 6px;border-radius:6px;font-size:13px;transition:background .15s;}
+  .icon-btn:hover{background:rgba(255,255,255,.08);}
+
+  /* OVERLAY */
+  .overlay{display:none;position:fixed;inset:0;z-index:100;background:rgba(6,16,30,.88);
+    backdrop-filter:blur(8px);align-items:center;justify-content:center;padding:20px;}
+  .overlay-card{background:#0d1f36;border:.5px solid rgba(100,160,200,.22);border-radius:20px;
+    width:100%;max-width:500px;padding:24px;max-height:90vh;overflow-y:auto;}
+  .overlay-card::-webkit-scrollbar{display:none;}
+  .overlay-title{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:1.5px;color:var(--brass-light);}
+  .overlay-close{background:none;border:none;color:var(--text-dim);font-size:24px;cursor:pointer;line-height:1;padding:0;}
+  .field-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .field-label{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text-dim);display:block;margin-bottom:5px;}
+  .field-input{width:100%;background:rgba(255,255,255,.05);border:.5px solid rgba(100,160,200,.2);
+    border-radius:8px;padding:9px 12px;color:var(--text);font-size:13px;font-family:'DM Sans',sans-serif;}
+  .field-input:focus{outline:none;border-color:rgba(100,160,200,.5);}
+  select.field-input{background:#0d1f36;}
+  .mono-input{font-family:'DM Mono',monospace;}
+  .btn-primary{background:var(--brass);color:var(--deep);border:none;border-radius:10px;padding:12px;
+    font-size:14px;font-weight:500;cursor:pointer;width:100%;font-family:'DM Sans',sans-serif;margin-top:4px;}
+  .btn-primary:hover{background:var(--brass-light);}
+  .btn-ghost{background:transparent;color:var(--text-dim);border:.5px solid var(--card-border);border-radius:10px;
+    padding:10px;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;}
+  .add-entry-btn{background:var(--brass);color:var(--deep);border:none;border-radius:16px;padding:7px 16px;
+    font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;cursor:pointer;letter-spacing:.3px;white-space:nowrap;}
+  .update-hrs-btn{background:transparent;color:var(--brass);border:.5px solid var(--brass);border-radius:16px;
+    padding:6px 14px;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:500;cursor:pointer;letter-spacing:.3px;}
+  .update-hrs-btn:hover{background:rgba(200,146,42,.1);}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <header>
+    <div class="vessel-title">
+      <div class="vessel-name" id="vessel-name-el">Sunset Serenade</div>
+      <div class="vessel-sub"><span id="vessel-id-el">OA 423</span> · Maintenance</div>
+    </div>
+    <div class="header-center">
+      <div class="hr-chip port"><span class="label">Port</span><span class="value">—</span></div>
+      <div class="hr-chip gen"><span class="label">Gen</span><span class="value">—</span></div>
+      <div class="hr-chip stbd"><span class="label">Stbd</span><span class="value">—</span></div>
+    </div>
+    <div class="header-right">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div>
+          <div id="clock-date">—</div>
+          <div id="clock-time">—</div>
+        </div>
+        <button onclick="showConfig()" id="gear-btn" title="Settings" style="background:none;border:none;cursor:pointer;padding:4px;border-radius:8px;color:var(--text-dim);font-size:20px;line-height:1;transition:color .2s;">⚙</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('overview')">Overview</button>
+    <button class="tab" onclick="switchTab('log')">Log</button>
+    <button class="tab" onclick="switchTab('intervals')">Intervals</button>
+  </div>
+
+  <div class="scroll-area">
+
+    <!-- OVERVIEW -->
+    <div class="view active" id="view-overview">
+      <div style="height:16px;"></div>
+
+      <!-- Engine hours row -->
+      <div class="hrs-row" id="ov-hrs-row">
+        <div class="hrs-card port"><span class="h-label">Port Engine</span><span class="h-value" id="ov-port-hrs">—</span></div>
+        <div class="hrs-card gen"><span class="h-label">Generator</span><span class="h-value" id="ov-gen-hrs">—</span></div>
+        <div class="hrs-card stbd"><span class="h-label">Stbd Engine</span><span class="h-value" id="ov-stbd-hrs">—</span></div>
+      </div>
+
+      <!-- Update hours button -->
+      <div style="margin-bottom:16px;">
+        <button class="update-hrs-btn" onclick="showUpdateHours()">⏱ Update Engine Hours</button>
+      </div>
+
+      <!-- Collapsible: Oil -->
+      <div class="coll-section open" id="cs-oil">
+        <div class="coll-header" onclick="toggleSection('cs-oil')">
+          <div class="coll-left">
+            <div class="coll-icon" style="background:rgba(200,146,42,.15);font-size:16px;">🛢</div>
+            <div>
+              <div class="coll-title">Oil</div>
+              <div class="coll-summary" id="cs-oil-summary">Loading…</div>
+            </div>
+          </div>
+          <div class="coll-right">
+            <div class="coll-badges" id="cs-oil-badges"></div>
+            <span class="coll-chevron">▼</span>
+          </div>
+        </div>
+        <div class="coll-body"><div class="coll-grid" id="cs-oil-cards"></div></div>
+      </div>
+
+      <!-- Collapsible: Fluids -->
+      <div class="coll-section open" id="cs-fluids">
+        <div class="coll-header" onclick="toggleSection('cs-fluids')">
+          <div class="coll-left">
+            <div class="coll-icon" style="background:rgba(55,138,221,.15);font-size:16px;">💧</div>
+            <div>
+              <div class="coll-title">Fluids & Filters</div>
+              <div class="coll-summary" id="cs-fluids-summary">Loading…</div>
+            </div>
+          </div>
+          <div class="coll-right">
+            <div class="coll-badges" id="cs-fluids-badges"></div>
+            <span class="coll-chevron">▼</span>
+          </div>
+        </div>
+        <div class="coll-body"><div class="coll-grid" id="cs-fluids-cards"></div></div>
+      </div>
+
+      <!-- Collapsible: Components -->
+      <div class="coll-section open" id="cs-components">
+        <div class="coll-header" onclick="toggleSection('cs-components')">
+          <div class="coll-left">
+            <div class="coll-icon" style="background:rgba(45,184,138,.15);font-size:16px;">⚙️</div>
+            <div>
+              <div class="coll-title">Components</div>
+              <div class="coll-summary" id="cs-components-summary">Loading…</div>
+            </div>
+          </div>
+          <div class="coll-right">
+            <div class="coll-badges" id="cs-components-badges"></div>
+            <span class="coll-chevron">▼</span>
+          </div>
+        </div>
+        <div class="coll-body"><div class="coll-grid" id="cs-components-cards"></div></div>
+      </div>
+
+    </div>
+
+    <!-- LOG -->
+    <div class="view" id="view-log">
+      <div style="height:16px;"></div>
+      <div class="filter-row" id="log-filters">
+        <button class="add-entry-btn" onclick="showAddEntry()">+ Add Entry</button>
+      </div>
+      <div class="log-table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th><th>System</th><th>Component</th>
+              <th>Hrs</th><th>Part</th><th>Action</th><th></th>
+            </tr>
+          </thead>
+          <tbody id="log-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- INTERVALS -->
+    <div class="view" id="view-intervals">
+      <div style="height:16px;"></div>
+      <!-- toolbar -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-dim);">Service Intervals</div>
+        <button class="add-entry-btn" onclick="showAddInterval()">+ Add Interval</button>
+      </div>
+      <!-- interval rows -->
+      <div id="int-rows" style="display:grid;gap:8px;margin-bottom:20px;"></div>
+      <!-- chart -->
+      <div class="chart-card">
+        <div class="chart-title">Hours since last service vs interval</div>
+        <div class="chart-wrap" style="height:200px;">
+          <canvas id="intChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- scroll-area -->
+
+  <!-- ADD / EDIT ENTRY OVERLAY -->
+  <div class="overlay" id="entry-overlay">
+    <div class="overlay-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <span class="overlay-title" id="entry-overlay-title">New Entry</span>
+        <button class="overlay-close" onclick="hideEntryOverlay()">×</button>
+      </div>
+      <form id="ae-form" onsubmit="return false;" style="display:grid;gap:12px;">
+        <div class="field-grid-2">
+          <div>
+            <label class="field-label">Date *</label>
+            <input id="ae-date" type="text" placeholder="M/D/YYYY" class="field-input mono-input">
+          </div>
+          <div>
+            <label class="field-label">Engine Hours</label>
+            <input id="ae-hours" type="number" placeholder="e.g. 3140" class="field-input mono-input">
+          </div>
+        </div>
+        <div class="field-grid-2">
+          <div>
+            <label class="field-label">System *</label>
+            <select id="ae-system" class="field-input">
+              <option value="Port Engine">Port Engine</option>
+              <option value="Stb Engine">Stb Engine</option>
+              <option value="Generator">Generator</option>
+              <option value="Engines">Engines</option>
+            </select>
+          </div>
+          <div>
+            <label class="field-label">Action</label>
+            <select id="ae-action" class="field-input">
+              <option value="Replaced">Replaced</option>
+              <option value="Checked">Checked</option>
+              <option value="Repaired">Repaired</option>
+              <option value="Inspected">Inspected</option>
+              <option value="">Other</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="field-label">Component *</label>
+          <input id="ae-component" type="text" placeholder="e.g. Oil, Impeller, Belt…" class="field-input">
+        </div>
+        <div>
+          <label class="field-label">Part Number</label>
+          <input id="ae-part" type="text" placeholder="e.g. WIX 33528" class="field-input">
+        </div>
+        <div>
+          <label class="field-label">Notes</label>
+          <input id="ae-notes" type="text" placeholder="Optional" class="field-input">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px;">
+          <button class="btn-ghost" onclick="hideEntryOverlay()">Cancel</button>
+          <button class="btn-primary" onclick="submitEntry()" id="entry-submit-btn">Save Entry</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- UPDATE HOURS OVERLAY -->
+  <div class="overlay" id="hrs-overlay">
+    <div class="overlay-card" style="max-width:360px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <span class="overlay-title">Update Hours</span>
+        <button class="overlay-close" onclick="hideUpdateHours()">×</button>
+      </div>
+      <div style="display:grid;gap:12px;">
+        <div>
+          <label class="field-label" style="color:var(--port);">Port Engine</label>
+          <input id="uh-port" type="number" placeholder="Current hours" class="field-input mono-input">
+        </div>
+        <div>
+          <label class="field-label" style="color:var(--stbd);">Stbd Engine</label>
+          <input id="uh-stbd" type="number" placeholder="Current hours" class="field-input mono-input">
+        </div>
+        <div>
+          <label class="field-label" style="color:var(--gen);">Generator</label>
+          <input id="uh-gen" type="number" placeholder="Current hours" class="field-input mono-input">
+        </div>
+        <p style="font-size:11px;color:var(--text-dim);margin-top:4px;">These override the max hours derived from log entries for interval calculations.</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <button class="btn-ghost" onclick="hideUpdateHours()">Cancel</button>
+          <button class="btn-primary" onclick="submitUpdateHours()">Update</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ADD / EDIT INTERVAL OVERLAY -->
+  <div class="overlay" id="iv-overlay">
+    <div class="overlay-card" style="max-width:400px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <span class="overlay-title" id="iv-overlay-title">New Interval</span>
+        <button class="overlay-close" onclick="hideIvOverlay()">×</button>
+      </div>
+      <div style="display:grid;gap:12px;">
+        <div>
+          <label class="field-label">System *</label>
+          <select id="iv-system" class="field-input">
+            <option value="Engine">Engine (Port &amp; Stbd)</option>
+            <option value="Port Engine">Port Engine only</option>
+            <option value="Stb Engine">Stbd Engine only</option>
+            <option value="Generator">Generator</option>
+            <option value="Engines">Both Engines</option>
+          </select>
+        </div>
+        <div>
+          <label class="field-label">Component *</label>
+          <input id="iv-component" type="text" placeholder="e.g. Oil, Impeller, Belt…" class="field-input">
+        </div>
+        <div>
+          <label class="field-label">Interval (engine hours) *</label>
+          <input id="iv-interval" type="number" placeholder="e.g. 200" class="field-input mono-input">
+        </div>
+        <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">
+          Interval is measured in engine hours since last matching log entry for that system and component.
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px;">
+          <button class="btn-ghost" onclick="hideIvOverlay()">Cancel</button>
+          <button class="btn-primary" onclick="submitInterval()" id="iv-submit-btn">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONFIG OVERLAY -->
+  <div class="overlay" id="config-overlay">
+    <div class="overlay-card" style="max-width:400px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <span class="overlay-title">Settings</span>
+        <button class="overlay-close" onclick="hideConfig()">×</button>
+      </div>
+      <div style="display:grid;gap:16px;">
+        <div>
+          <label class="field-label">Boat Name</label>
+          <input id="cfg-boat-name" type="text" placeholder="e.g. Sunset Serenade" class="field-input"
+            style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1px;">
+          <div style="font-size:10px;color:var(--text-dim);margin-top:5px;">Shown in the header and title bar.</div>
+        </div>
+        <div>
+          <label class="field-label">Vessel ID</label>
+          <input id="cfg-vessel-id" type="text" placeholder="e.g. OA 423" class="field-input mono-input">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px;">
+          <button class="btn-ghost" onclick="hideConfig()">Cancel</button>
+          <button class="btn-primary" onclick="saveConfig()">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- app -->
+
+<script>
+const LS_LOG       = 'ss_log';
+const LS_INTERVALS = 'ss_intervals';
+const LS_HRS       = 'ss_manual_hrs';
+const LS_CONFIG    = 'ss_config';
+
+const SEED_LOG = [
+  {date:'6/1/2026',  hours:3137, system:'Stb Engine',  component:'Oil',           part:'NAPA 5168',      action:'Replaced', notes:''},
+  {date:'6/1/2026',  hours:3131, system:'Port Engine',  component:'Oil',           part:'NAPA 5168',      action:'Replaced', notes:''},
+  {date:'6/1/2026',  hours:3137, system:'Stb Engine',   component:'Fuel Filter',   part:'WIX 33528',      action:'Replaced', notes:''},
+  {date:'6/1/2026',  hours:3131, system:'Port Engine',  component:'Fuel Filter',   part:'WIX 33528',      action:'Replaced', notes:''},
+  {date:'6/1/2026',  hours:null, system:'Engines',      component:'Racors',        part:'Racor ?',        action:'Replaced', notes:''},
+  {date:'6/1/2026',  hours:null, system:'Generator',    component:'Oil',           part:'FRAM ?',         action:'Replaced', notes:''},
+  {date:'1/11/2026', hours:3020, system:'Port Engine',  component:'Belt',          part:'NAPA 259490HD',  action:'Replaced', notes:''},
+  {date:'1/1/2026',  hours:3018, system:'Generator',    component:'Impeller',      part:'',               action:'',         notes:''},
+  {date:'11/8/2025', hours:2949, system:'Port Engine',  component:'Zinc',          part:'',               action:'Replaced', notes:''},
+  {date:'11/8/2025', hours:2948, system:'Stb Engine',   component:'Zinc',          part:'',               action:'Replaced', notes:''},
+  {date:'11/8/2025', hours:1490, system:'Generator',    component:'Zinc',          part:'',               action:'Replaced', notes:''},
+  {date:'11/8/2025', hours:1490, system:'Generator',    component:'Belt',          part:'Dayco 15395',    action:'Replaced', notes:''},
+  {date:'10/15/2025',hours:1479, system:'Generator',    component:'Oil',           part:'NAPA 1334',      action:'Replaced', notes:''},
+  {date:'10/15/2025',hours:1479, system:'Generator',    component:'Fuel Filter',   part:'NAPA 3795',      action:'Replaced', notes:''},
+  {date:'10/14/2025',hours:2948, system:'Port Engine',  component:'Impeller',      part:'Sherwood 1700K', action:'Checked',  notes:''},
+  {date:'10/14/2025',hours:2949, system:'Stb Engine',   component:'Impeller',      part:'Sherwood 1700K', action:'Checked',  notes:''},
+  {date:'10/14/2025',hours:2948, system:'Port Engine',  component:'Heat XChangers',part:'CAT Part',       action:'Repaired', notes:''},
+  {date:'10/14/2025',hours:2949, system:'Stb Engine',   component:'Heat XChangers',part:'CAT Part',       action:'Repaired', notes:''},
+  {date:'9/15/2025', hours:2949, system:'Stb Engine',   component:'Oil',           part:'WIX 55168',      action:'Replaced', notes:''},
+  {date:'9/15/2025', hours:2948, system:'Port Engine',  component:'Oil',           part:'WIX 55168',      action:'Replaced', notes:''},
+  {date:'9/15/2025', hours:2949, system:'Stb Engine',   component:'Fuel Filter',   part:'WIX 33528',      action:'Replaced', notes:''},
+  {date:'9/15/2025', hours:2948, system:'Port Engine',  component:'Fuel Filter',   part:'WIX 33528',      action:'Replaced', notes:''},
+];
+const SEED_INTERVALS = [
+  {system:'Engine',    component:'Oil', interval:200},
+  {system:'Generator', component:'Oil', interval:100},
+];
+
+let RAW = [];
+let INTERVALS = [];
+let CURRENT_HRS = {};
+let MANUAL_HRS = {};
+let CONFIG = { boatName: 'Sunset Serenade', vesselId: 'OA 423' };
+const SYS_COLOR = {'Port Engine':'#378add','Stb Engine':'#2db88a','Generator':'#d86030','Engines':'#7f77dd'};
+
+// ── STORAGE ──
+function saveAll() {
+  try {
+    localStorage.setItem(LS_LOG,       JSON.stringify(RAW));
+    localStorage.setItem(LS_INTERVALS, JSON.stringify(INTERVALS.map(iv=>({system:iv.system,component:iv.component,interval:iv.interval}))));
+    localStorage.setItem(LS_HRS,       JSON.stringify(MANUAL_HRS));
+    localStorage.setItem(LS_CONFIG,    JSON.stringify(CONFIG));
+  } catch(e){}
+}
+
+function loadAll() {
+  try {
+    const log = localStorage.getItem(LS_LOG);
+    const ivs = localStorage.getItem(LS_INTERVALS);
+    const hrs = localStorage.getItem(LS_HRS);
+    const cfg = localStorage.getItem(LS_CONFIG);
+    RAW = log ? JSON.parse(log) : JSON.parse(JSON.stringify(SEED_LOG));
+    MANUAL_HRS = hrs ? JSON.parse(hrs) : {};
+    if (cfg) CONFIG = Object.assign(CONFIG, JSON.parse(cfg));
+    const rawIvs = ivs ? JSON.parse(ivs) : SEED_INTERVALS;
+    rebuildIntervals(rawIvs);
+    if (!log) saveAll();
+  } catch(e) {
+    RAW = JSON.parse(JSON.stringify(SEED_LOG));
+    MANUAL_HRS = {};
+    rebuildIntervals(SEED_INTERVALS);
+  }
+  recalcHrs();
+}
+
+function rebuildIntervals(rawIvs) {
+  const engineSys = [...new Set(RAW.map(r=>r.system).filter(s=>s.includes('Engine')))];
+  INTERVALS = rawIvs.map(iv=>({
+    system: iv.system,
+    sysMatch: iv.system==='Engine' ? engineSys : [iv.system],
+    component: iv.component,
+    interval: Number(iv.interval),
+  }));
+}
+
+function recalcHrs() {
+  const derived = {};
+  RAW.forEach(r=>{
+    if (r.hours && r.system)
+      if (!derived[r.system] || r.hours > derived[r.system]) derived[r.system] = r.hours;
+  });
+  // Merge: manual overrides derived
+  CURRENT_HRS = Object.assign({}, derived, MANUAL_HRS);
+  const chips = {port:'Port Engine', stbd:'Stb Engine', gen:'Generator'};
+  Object.entries(chips).forEach(([cls,sys])=>{
+    const el = document.querySelector(`.hr-chip.${cls} .value`);
+    if (el) el.textContent = CURRENT_HRS[sys] ? Number(CURRENT_HRS[sys]).toLocaleString() : '—';
+  });
+}
+
+// ── CONFIG ──
+function applyConfig() {
+  document.getElementById('vessel-name-el').textContent = CONFIG.boatName || 'Sunset Serenade';
+  document.getElementById('vessel-id-el').textContent   = CONFIG.vesselId  || 'OA 423';
+  document.title = (CONFIG.boatName || 'Sunset Serenade') + ' — Maintenance';
+  const meta = document.querySelector('meta[name="apple-mobile-web-app-title"]');
+  if (meta) meta.content = CONFIG.boatName || 'Sunset Serenade';
+}
+
+function showConfig() {
+  document.getElementById('cfg-boat-name').value = CONFIG.boatName || '';
+  document.getElementById('cfg-vessel-id').value = CONFIG.vesselId  || '';
+  document.getElementById('config-overlay').style.display = 'flex';
+}
+
+function hideConfig() {
+  document.getElementById('config-overlay').style.display = 'none';
+}
+
+function saveConfig() {
+  const name = document.getElementById('cfg-boat-name').value.trim();
+  const id   = document.getElementById('cfg-vessel-id').value.trim();
+  if (name) CONFIG.boatName = name;
+  if (id)   CONFIG.vesselId  = id;
+  saveAll();
+  applyConfig();
+  hideConfig();
+}
+
+// ── CLOCK ──
+function updateClock() {
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+  const timeStr = now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:true});
+  document.getElementById('clock-date').textContent = dateStr;
+  document.getElementById('clock-time').textContent = timeStr;
+}
+
+// ── HELPERS ──
+function pDate(s){ if(!s) return new Date(0); const [m,d,y]=s.split('/').map(Number); return new Date(y,m-1,d); }
+
+function lastSvc(sys,comp){
+  return RAW.filter(r=>r.system===sys&&r.component===comp&&r.hours!=null)
+            .sort((a,b)=>pDate(b.date)-pDate(a.date))[0]||null;
+}
+
+function intervalStatus(iv,sys){
+  const last=lastSvc(sys,iv.component), cur=CURRENT_HRS[sys];
+  if(!last||!cur) return null;
+  const since=cur-last.hours, pct=Math.min(since/iv.interval*100,100), rem=iv.interval-since;
+  const cls=since>=iv.interval?'due':pct>=75?'warn':'ok';
+  return {since,pct,rem,cls,last,cur,interval:iv.interval,sys,comp:iv.component};
+}
+
+// ── UPDATE HOURS OVERLAY ──
+function showUpdateHours() {
+  document.getElementById('uh-port').value = CURRENT_HRS['Port Engine']||'';
+  document.getElementById('uh-stbd').value = CURRENT_HRS['Stb Engine']||'';
+  document.getElementById('uh-gen').value  = CURRENT_HRS['Generator']||'';
+  document.getElementById('hrs-overlay').style.display = 'flex';
+}
+function hideUpdateHours() { document.getElementById('hrs-overlay').style.display = 'none'; }
+function submitUpdateHours() {
+  const p = document.getElementById('uh-port').value.trim();
+  const s = document.getElementById('uh-stbd').value.trim();
+  const g = document.getElementById('uh-gen').value.trim();
+  if (p) MANUAL_HRS['Port Engine'] = Number(p);
+  if (s) MANUAL_HRS['Stb Engine']  = Number(s);
+  if (g) MANUAL_HRS['Generator']   = Number(g);
+  saveAll();
+  recalcHrs();
+  hideUpdateHours();
+  refreshAll();
+}
+
+// ── ADD / EDIT ENTRY ──
+let editIdx = null;
+
+function showAddEntry() {
+  editIdx = null;
+  document.getElementById('entry-overlay-title').textContent = 'New Entry';
+  document.getElementById('entry-submit-btn').textContent = 'Save Entry';
+  document.getElementById('ae-form').reset();
+  const today = new Date();
+  document.getElementById('ae-date').value = `${today.getMonth()+1}/${today.getDate()}/${today.getFullYear()}`;
+  document.getElementById('entry-overlay').style.display = 'flex';
+}
+
+function showEditEntry(idx) {
+  editIdx = idx;
+  const r = RAW[idx];
+  document.getElementById('entry-overlay-title').textContent = 'Edit Entry';
+  document.getElementById('entry-submit-btn').textContent = 'Update Entry';
+  document.getElementById('ae-date').value      = r.date||'';
+  document.getElementById('ae-hours').value     = r.hours??'';
+  document.getElementById('ae-system').value    = r.system||'Port Engine';
+  document.getElementById('ae-action').value    = r.action||'Replaced';
+  document.getElementById('ae-component').value = r.component||'';
+  document.getElementById('ae-part').value      = r.part||'';
+  document.getElementById('ae-notes').value     = r.notes||'';
+  document.getElementById('entry-overlay').style.display = 'flex';
+}
+
+function hideEntryOverlay() {
+  document.getElementById('entry-overlay').style.display = 'none';
+  document.getElementById('ae-form').reset();
+  editIdx = null;
+}
+
+function submitEntry() {
+  const date      = document.getElementById('ae-date').value.trim();
+  const system    = document.getElementById('ae-system').value;
+  const component = document.getElementById('ae-component').value.trim();
+  const hours     = document.getElementById('ae-hours').value.trim();
+  const part      = document.getElementById('ae-part').value.trim();
+  const action    = document.getElementById('ae-action').value;
+  const notes     = document.getElementById('ae-notes').value.trim();
+  if (!date||!system||!component){ alert('Date, System, and Component are required.'); return; }
+  const entry = { date, system, component, hours: hours?Number(hours):null, part, action, notes };
+  if (editIdx !== null) RAW[editIdx] = entry;
+  else RAW.push(entry);
+  saveAll(); recalcHrs(); hideEntryOverlay(); refreshAll();
+}
+
+function deleteEntry(idx) {
+  if (!confirm('Delete this entry?')) return;
+  RAW.splice(idx,1);
+  saveAll(); recalcHrs(); refreshAll();
+}
+
+// ── OVERVIEW ──
+
+// Categories: which components fall in which section
+const OV_CATS = {
+  oil:        ['oil'],
+  fluids:     ['fuel filter','racor','coolant','fluid','antifreeze','transmission fluid','gear oil'],
+  components: [], // catch-all
+};
+
+function compCategory(comp) {
+  const c = comp.toLowerCase();
+  if (OV_CATS.oil.some(k=>c.includes(k)))    return 'oil';
+  if (OV_CATS.fluids.some(k=>c.includes(k))) return 'fluids';
+  return 'components';
+}
+
+function icardHTML(s) {
+  return `<div class="icard ${s.cls}">
+    <div class="icard-top">
+      <div class="icard-name"><span class="sys-dot" style="background:${SYS_COLOR[s.sys]||'#888'}"></span>${s.sys}</div>
+      <div class="icard-status">${s.cls==='due'?'OVERDUE':s.rem+' hrs left'}</div>
+    </div>
+    <div class="progress-track"><div class="progress-fill" style="width:${Math.round(s.pct)}%"></div></div>
+    <div class="icard-detail"><span>Last @ ${s.last.hours} hrs · ${s.last.date}</span><span>${Math.round(s.pct)}% / ${s.interval} hr</span></div>
+  </div>`;
+}
+
+function lastServiceRow(sys, comp) {
+  return RAW.filter(r=>r.system===sys&&r.component.toLowerCase()===comp.toLowerCase()&&r.hours!=null)
+            .sort((a,b)=>pDate(b.date)-pDate(a.date))[0]||null;
+}
+
+function buildOvSection(sectionId, comps) {
+  // comps: array of unique component names belonging to this section
+  // For each: find all systems that have a log entry, build icard or plain last-service card
+  const cardsHTML = [];
+  const statusDots = [];
+
+  comps.forEach(comp => {
+    const systems = [...new Set(RAW.filter(r=>r.component.toLowerCase()===comp.toLowerCase()).map(r=>r.system))];
+    // Check if there's an interval configured
+    const ivMatch = INTERVALS.find(iv=>iv.component.toLowerCase()===comp.toLowerCase());
+    if (ivMatch) {
+      ivMatch.sysMatch.forEach(sys=>{
+        const s = intervalStatus(ivMatch, sys);
+        if (s) { cardsHTML.push(icardHTML(s)); statusDots.push(s.cls); }
+      });
+    } else {
+      // No interval — show last service card per system
+      systems.forEach(sys=>{
+        const last = lastServiceRow(sys, comp);
+        if (!last) return;
+        cardsHTML.push(`<div class="icard ok">
+          <div class="icard-top">
+            <div class="icard-name"><span class="sys-dot" style="background:${SYS_COLOR[sys]||'#888'}"></span>${sys} — ${comp}</div>
+            <div class="icard-status" style="color:var(--text-dim);">${last.action||'Serviced'}</div>
+          </div>
+          <div class="icard-detail" style="margin-top:4px;"><span>${last.date}</span><span class="mono">${last.hours ? last.hours+' hrs' : '—'}</span></div>
+        </div>`);
+        statusDots.push('ok');
+      });
+    }
+  });
+
+  // Summary text
+  const due  = statusDots.filter(d=>d==='due').length;
+  const warn = statusDots.filter(d=>d==='warn').length;
+  const ok   = statusDots.filter(d=>d==='ok').length;
+  let summary = `${comps.length} component${comps.length!==1?'s':''}`;
+  if (due)  summary += ` · ${due} overdue`;
+  if (warn) summary += ` · ${warn} due soon`;
+  if (!due && !warn && ok) summary += ' · all current';
+
+  // Badge dots
+  const badges = [...statusDots.filter(d=>d==='due').map(()=>`<span class="status-dot" style="background:var(--danger);"></span>`),
+                  ...statusDots.filter(d=>d==='warn').map(()=>`<span class="status-dot" style="background:var(--warn);"></span>`),
+                  ...statusDots.filter(d=>d==='ok').map(()=>`<span class="status-dot" style="background:var(--good);"></span>`)].join('');
+
+  document.getElementById(sectionId+'-summary').textContent = summary;
+  document.getElementById(sectionId+'-badges').innerHTML = badges;
+  document.getElementById(sectionId+'-cards').innerHTML = cardsHTML.length
+    ? cardsHTML.join('')
+    : `<div style="color:var(--text-dim);font-size:12px;padding:4px 2px;">No entries logged.</div>`;
+}
+
+function toggleSection(id) {
+  document.getElementById(id).classList.toggle('open');
+}
+
+function buildOverview() {
+  if (!RAW.length) return;
+
+  // Engine hours display
+  document.getElementById('ov-port-hrs').textContent = CURRENT_HRS['Port Engine'] ? Number(CURRENT_HRS['Port Engine']).toLocaleString() : '—';
+  document.getElementById('ov-stbd-hrs').textContent = CURRENT_HRS['Stb Engine']  ? Number(CURRENT_HRS['Stb Engine']).toLocaleString()  : '—';
+  document.getElementById('ov-gen-hrs').textContent  = CURRENT_HRS['Generator']   ? Number(CURRENT_HRS['Generator']).toLocaleString()   : '—';
+
+  // Categorize components
+  const allComps = [...new Set(RAW.map(r=>r.component))];
+  const oilComps  = allComps.filter(c=>compCategory(c)==='oil');
+  const fluidComps= allComps.filter(c=>compCategory(c)==='fluids');
+  const compComps = allComps.filter(c=>compCategory(c)==='components');
+
+  buildOvSection('cs-oil',        oilComps.length   ? oilComps   : []);
+  buildOvSection('cs-fluids',     fluidComps.length ? fluidComps : []);
+  buildOvSection('cs-components', compComps.length  ? compComps  : []);
+}
+
+// ── LOG ──
+let logFilter='All', logSystems=[];
+function buildLogFilters() {
+  logSystems=['All',...new Set(RAW.map(r=>r.system))];
+  const pills = logSystems.map(s=>`<button class="fpill ${s===logFilter?'active':''}" data-sys="${s}" onclick="setLogFilter('${s}')">${s}</button>`).join('');
+  document.getElementById('log-filters').innerHTML =
+    `<button class="add-entry-btn" onclick="showAddEntry()">+ Add Entry</button>${pills}`;
+}
+function setLogFilter(sys){ logFilter=sys; buildLogFilters(); renderLog(); }
+function renderLog() {
+  const rows=logFilter==='All'?RAW:RAW.filter(r=>r.system===logFilter);
+  const sorted=[...rows].sort((a,b)=>pDate(b.date)-pDate(a.date));
+  document.getElementById('log-tbody').innerHTML=sorted.map(r=>{
+    const idx=RAW.indexOf(r);
+    return `<tr>
+      <td class="mono">${r.date}</td>
+      <td><span class="sys-dot" style="background:${SYS_COLOR[r.system]||'#888'}"></span>${r.system}</td>
+      <td>${r.component}</td>
+      <td class="mono">${r.hours??'—'}</td>
+      <td style="color:var(--text-dim);font-size:11px;">${r.part||'—'}</td>
+      <td>${r.action?`<span class="action-badge action-${r.action}">${r.action}</span>`:''}</td>
+      <td style="white-space:nowrap;">
+        <button class="icon-btn" onclick="showEditEntry(${idx})" title="Edit">✎</button>
+        <button class="icon-btn" onclick="deleteEntry(${idx})" title="Delete" style="color:var(--danger);">✕</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ── INTERVALS ──
+let intChartInst=null;
+let editIvIdx=null;
+
+function showAddInterval() {
+  editIvIdx=null;
+  document.getElementById('iv-overlay-title').textContent='New Interval';
+  document.getElementById('iv-submit-btn').textContent='Save';
+  document.getElementById('iv-system').value='Engine';
+  document.getElementById('iv-component').value='';
+  document.getElementById('iv-interval').value='';
+  document.getElementById('iv-overlay').style.display='flex';
+}
+
+function showEditInterval(idx) {
+  editIvIdx=idx;
+  const iv=INTERVALS[idx];
+  document.getElementById('iv-overlay-title').textContent='Edit Interval';
+  document.getElementById('iv-submit-btn').textContent='Update';
+  document.getElementById('iv-system').value=iv.system;
+  document.getElementById('iv-component').value=iv.component;
+  document.getElementById('iv-interval').value=iv.interval;
+  document.getElementById('iv-overlay').style.display='flex';
+}
+
+function hideIvOverlay() {
+  document.getElementById('iv-overlay').style.display='none';
+}
+
+function submitInterval() {
+  const system    = document.getElementById('iv-system').value;
+  const component = document.getElementById('iv-component').value.trim();
+  const interval  = document.getElementById('iv-interval').value.trim();
+  if (!system||!component||!interval){ alert('All fields required.'); return; }
+  const engineSys=[...new Set(RAW.map(r=>r.system).filter(s=>s.includes('Engine')))];
+  const entry={
+    system,
+    sysMatch: system==='Engine' ? engineSys : [system],
+    component,
+    interval: Number(interval),
+  };
+  if (editIvIdx!==null) INTERVALS[editIvIdx]=entry;
+  else INTERVALS.push(entry);
+  saveAll(); hideIvOverlay(); refreshAll();
+}
+
+function deleteInterval(idx) {
+  if (!confirm('Delete this interval?')) return;
+  INTERVALS.splice(idx,1);
+  saveAll(); refreshAll();
+}
+
+function buildIntervals() {
+  // ── Editable rows ──
+  const rowsEl=document.getElementById('int-rows');
+  if (!INTERVALS.length) {
+    rowsEl.innerHTML=`<div style="color:var(--text-dim);font-size:12px;padding:8px 2px;">No intervals configured. Tap + Add Interval to create one.</div>`;
+  } else {
+    rowsEl.innerHTML=INTERVALS.map((iv,idx)=>{
+      // Collect statuses for this interval across its systems
+      const statuses=iv.sysMatch.map(sys=>intervalStatus(iv,sys)).filter(Boolean);
+      const worstCls = statuses.some(s=>s.cls==='due')?'due':statuses.some(s=>s.cls==='warn')?'warn':'ok';
+      const avgPct   = statuses.length ? Math.round(statuses.reduce((a,s)=>a+s.pct,0)/statuses.length) : 0;
+      const clrMap   = {ok:'var(--good)',warn:'var(--warn)',due:'var(--danger)'};
+      const clr      = clrMap[worstCls];
+
+      const sysLabel = iv.system==='Engine'?'Port + Stbd Engines':iv.system;
+      const statusText = statuses.length===0 ? 'No log data'
+        : worstCls==='due' ? 'Overdue'
+        : statuses.map(s=>s.rem+' hrs left ('+s.sys.replace(' Engine','')+')')
+                  .join(' · ');
+
+      return `<div style="background:var(--card-bg);border:.5px solid var(--card-border);border-radius:var(--radius-sm);padding:14px 16px;position:relative;overflow:hidden;">
+        <div style="position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:3px 0 0 3px;background:${clr};"></div>
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+          <div>
+            <div style="font-size:13px;font-weight:500;">${iv.component}
+              <span style="font-size:10px;color:var(--text-dim);font-weight:400;margin-left:6px;">${sysLabel}</span>
+            </div>
+            <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">Every ${iv.interval} hrs &nbsp;·&nbsp; <span style="color:${clr};">${statusText}</span></div>
+          </div>
+          <div style="display:flex;gap:4px;flex-shrink:0;margin-left:10px;">
+            <button class="icon-btn" onclick="showEditInterval(${idx})" title="Edit" style="font-size:13px;">✎</button>
+            <button class="icon-btn" onclick="deleteInterval(${idx})" title="Delete" style="color:var(--danger);font-size:13px;">✕</button>
+          </div>
+        </div>
+        <div style="height:4px;background:rgba(255,255,255,.08);border-radius:2px;">
+          <div style="height:4px;border-radius:2px;background:${clr};width:${Math.min(avgPct,100)}%;transition:width .5s;"></div>
+        </div>
+        ${statuses.length ? `<div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-dim);margin-top:5px;">
+          <span>Last: ${statuses[0].last.date} @ ${statuses[0].last.hours} hrs</span>
+          <span>${avgPct}% of interval</span>
+        </div>` : ''}
+      </div>`;
+    }).join('');
+  }
+
+  // ── Chart ──
+  const statuses=[];
+  INTERVALS.forEach(iv=>iv.sysMatch.forEach(sys=>{ const s=intervalStatus(iv,sys); if(s) statuses.push(s); }));
+  const labels=statuses.map(s=>s.sys.replace(' Engine','').replace('Generator','Gen')+' '+s.comp);
+  if (intChartInst) intChartInst.destroy();
+  if (!statuses.length) return;
+  intChartInst=new Chart(document.getElementById('intChart'),{
+    type:'bar',
+    data:{labels,datasets:[
+      {label:'Since service',data:statuses.map(s=>s.since),backgroundColor:statuses.map(s=>s.cls==='due'?'#e05c4a':s.cls==='warn'?'#d4912a':'#3aaa7a'),borderRadius:4},
+      {label:'Interval',data:statuses.map(s=>s.interval),backgroundColor:'rgba(255,255,255,.07)',borderRadius:4}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'bottom',labels:{color:'#7a9bb0',font:{size:10},boxWidth:8,boxHeight:8}}},
+      scales:{y:{beginAtZero:true,ticks:{color:'#7a9bb0',font:{size:10}},grid:{color:'rgba(100,160,200,.07)'}},
+              x:{ticks:{color:'#7a9bb0',font:{size:10}},grid:{display:false}}}}
+  });
+}
+
+// ── TABS ──
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t,i)=>{
+    t.classList.toggle('active',['overview','log','intervals'][i]===name);
+  });
+  document.querySelectorAll('.view').forEach(v=>{
+    v.classList.toggle('active',v.id==='view-'+name);
+  });
+}
+
+// ── REFRESH ──
+function refreshAll() { buildOverview(); buildLogFilters(); renderLog(); buildIntervals(); }
+
+// ── INIT ──
+loadAll();
+applyConfig();
+refreshAll();
+updateClock();
+setInterval(updateClock, 1000);
+</script>
+</body>
+</html>
