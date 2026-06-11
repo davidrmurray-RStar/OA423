@@ -502,7 +502,7 @@ const SEED_LOG = [
   {date:'6/1/2026',  hours:3131, system:'Port Engine',  component:'Oil',           part:'NAPA 5168',      action:'Replaced', notes:''},
   {date:'6/1/2026',  hours:3137, system:'Stb Engine',   component:'Fuel Filter',   part:'WIX 33528',      action:'Replaced', notes:''},
   {date:'6/1/2026',  hours:3131, system:'Port Engine',  component:'Fuel Filter',   part:'WIX 33528',      action:'Replaced', notes:''},
-  {date:'6/1/2026',  hours:null, system:'Engines',      component:'Racors',        part:'Racor ?',        action:'Replaced', notes:''},
+  {date:'6/1/2026',  hours:null, system:'Engines',      component:'Racor',         part:'Racor ?',        action:'Replaced', notes:''},
   {date:'6/1/2026',  hours:null, system:'Generator',    component:'Oil',           part:'FRAM ?',         action:'Replaced', notes:''},
   {date:'1/11/2026', hours:3020, system:'Port Engine',  component:'Belt',          part:'NAPA 259490HD',  action:'Replaced', notes:''},
   {date:'1/1/2026',  hours:3018, system:'Generator',    component:'Impeller',      part:'',               action:'',         notes:''},
@@ -1466,7 +1466,14 @@ function buildIntervals() {
       const typeBadge = type === 'days'
         ? `<span style="font-size:9px;padding:1px 7px;background:rgba(127,119,221,.15);color:#a09be8;border-radius:8px;margin-left:6px;letter-spacing:.5px;text-transform:uppercase;font-weight:500;">Date</span>`
         : `<span style="font-size:9px;padding:1px 7px;background:rgba(200,146,42,.15);color:var(--brass-light);border-radius:8px;margin-left:6px;letter-spacing:.5px;text-transform:uppercase;font-weight:500;">Hours</span>`;
-      const statusText = statuses.length===0 ? 'No log data'
+      const hasEntry = iv.sysMatch.some(sys =>
+        RAW.some(r => r.system===sys && r.component.toLowerCase()===iv.component.toLowerCase())
+      );
+      const fallbackLast = hasEntry && statuses.length===0
+        ? iv.sysMatch.map(sys=>lastSvcAny(sys,iv.component)).filter(Boolean).sort((a,b)=>pDate(b.date)-pDate(a.date))[0]
+        : null;
+      const statusText = statuses.length===0
+        ? (hasEntry ? 'No engine hours in log entry — edit to add hours' : 'No log data')
         : worstCls==='due' ? 'Overdue'
         : statuses.map(s=>s.rem+' '+unit+' left ('+s.sys.replace(' Engine','')+')')
                   .join(' · ');
@@ -1475,7 +1482,9 @@ function buildIntervals() {
         ? type === 'days'
           ? `<span>Last: ${statuses[0].last.date}</span>`
           : `<span>Last: ${statuses[0].last.date} @ ${statuses[0].last.hours ?? '—'} hrs</span>`
-        : '';
+        : fallbackLast
+          ? `<span>Last: ${fallbackLast.date} (no hours recorded)</span>`
+          : '';
 
       return `<div style="background:var(--card-bg);border:.5px solid var(--card-border);border-radius:var(--radius-sm);padding:14px 16px;position:relative;overflow:hidden;">
         <div style="position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:3px 0 0 3px;background:${clr};"></div>
