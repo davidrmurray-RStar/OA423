@@ -22,6 +22,31 @@
     --card-bg:rgba(255,255,255,0.04); --card-border:rgba(100,160,200,0.14);
     --radius:16px; --radius-sm:10px;
   }
+  /* LIGHT MODE */
+  html.light {
+    --deep:#f0f4f8; --hull:#e2eaf2; --wake:#cdd9e5;
+    --text:#1a2a3a; --text-dim:#5a7a96;
+    --border:rgba(60,100,150,0.14);
+    --card-bg:rgba(255,255,255,0.7); --card-border:rgba(60,100,150,0.16);
+    --brass:#b07a1a; --brass-light:#a06c10;
+  }
+  html.light body { background: var(--deep); }
+  html.light body::before {
+    background:
+      radial-gradient(ellipse 80% 50% at 50% -10%,rgba(180,210,240,.4) 0%,transparent 70%),
+      radial-gradient(ellipse 60% 40% at 80% 110%,rgba(150,190,230,.3) 0%,transparent 60%);
+  }
+  html.light .overlay { background: rgba(200,220,240,.7); }
+  html.light .overlay-card { background: #f8fafc; border-color: rgba(60,100,150,.2); }
+  html.light .field-input { background: rgba(255,255,255,.9); color: var(--text); }
+  html.light select.field-input { background: #f8fafc; }
+  html.light .log-table-wrap, html.light .chart-card, html.light .coll-section { background: rgba(255,255,255,.7); }
+  html.light thead th { background: rgba(240,244,248,.9); }
+  html.light .tab-active { background: var(--brass); color: #fff; }
+  /* THEME TOGGLE */
+  .theme-toggle { display:flex; gap:0; background:rgba(128,128,128,.12); border-radius:20px; border:.5px solid var(--card-border); overflow:hidden; }
+  .theme-btn { background:none; border:none; cursor:pointer; padding:7px 14px; font-size:13px; color:var(--text-dim); font-family:'DM Sans',sans-serif; font-weight:500; transition:all .15s; white-space:nowrap; }
+  .theme-btn.active { background:var(--brass); color:var(--deep); }
   *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
   html,body{height:100%;background:var(--deep);color:var(--text);font-family:'DM Sans',sans-serif;overflow:hidden;}
   body::before{content:'';position:fixed;inset:0;background:
@@ -32,7 +57,7 @@
     padding:env(safe-area-inset-top,20px) env(safe-area-inset-right,0) env(safe-area-inset-bottom,0) env(safe-area-inset-left,0);}
 
   /* HEADER */
-  header{display:flex;align-items:center;justify-content:space-between;padding:14px 20px 10px;border-bottom:.5px solid var(--border);flex-shrink:0;gap:12px;}
+  header{display:flex;align-items:center;justify-content:space-between;padding:14px 20px 10px;border-bottom:.5px solid var(--border);flex-shrink:0;gap:12px;position:relative;z-index:10;}
   .vessel-title{display:flex;align-items:baseline;gap:8px;min-width:0;}
   .vessel-name{font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:2px;color:var(--brass-light);line-height:1;white-space:nowrap;}
   .vessel-sub{font-size:10px;color:var(--text-dim);letter-spacing:1.5px;text-transform:uppercase;white-space:nowrap;}
@@ -48,7 +73,7 @@
   #clock-time{font-size:16px;font-family:'DM Mono',monospace;color:var(--text);font-weight:500;letter-spacing:1px;}
 
   /* TABS */
-  .tabs{display:flex;gap:4px;padding:10px 20px 0;flex-shrink:0;}
+  .tabs{display:flex;gap:4px;padding:10px 20px 0;flex-shrink:0;position:relative;z-index:10;}
   .tab{font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;letter-spacing:.5px;text-transform:uppercase;
     padding:7px 18px;border-radius:20px;border:.5px solid transparent;background:transparent;color:var(--text-dim);cursor:pointer;transition:all .2s;}
   .tab.active{background:var(--brass);color:var(--deep);border-color:var(--brass);}
@@ -79,6 +104,21 @@
   .icard.ok .progress-fill{background:var(--good);} .icard.warn .progress-fill{background:var(--warn);} .icard.due .progress-fill{background:var(--danger);}
   .icard-detail{font-size:10px;color:var(--text-dim);display:flex;justify-content:space-between;}
 
+  /* SECTION REORDER */
+  .section-toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+  .reorder-btn{background:none;border:.5px solid var(--card-border);border-radius:8px;padding:5px 10px;font-size:11px;color:var(--text-dim);cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;}
+  .reorder-btn.active{background:var(--brass);color:var(--deep);border-color:var(--brass);}
+  .coll-section.dragging{opacity:.4;border:1.5px dashed var(--brass);}
+  .coll-section.drag-over{border-color:var(--brass-light);background:rgba(200,146,42,.06);}
+  .drag-handle{cursor:grab;padding:0 8px;color:var(--text-dim);font-size:16px;line-height:1;display:none;align-items:center;user-select:none;-webkit-user-select:none;}
+  .drag-handle:active{cursor:grabbing;}
+  body.reorder-mode .drag-handle{display:flex;}
+  body.reorder-mode .coll-chevron{display:none;}
+  body.reorder-mode .coll-header{cursor:default;}
+  /* COMPONENT FILTER */
+  .comp-filter-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;align-items:center;}
+  .cfpill{font-size:11px;padding:4px 12px;border-radius:14px;border:.5px solid var(--card-border);background:transparent;color:var(--text-dim);cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;white-space:nowrap;}
+  .cfpill.active{background:var(--wake);color:var(--text);border-color:rgba(100,160,200,.3);}
   /* COLLAPSIBLE SECTIONS */
   .coll-section{margin-bottom:10px;background:var(--card-bg);border:.5px solid var(--card-border);border-radius:var(--radius);overflow:hidden;}
   .coll-header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;cursor:pointer;user-select:none;-webkit-user-select:none;}
@@ -140,8 +180,9 @@
   .icon-btn:hover{background:rgba(255,255,255,.08);}
 
   /* OVERLAY */
-  .overlay{display:none;position:fixed;inset:0;z-index:100;background:rgba(6,16,30,.88);
-    backdrop-filter:blur(8px);align-items:center;justify-content:center;padding:20px;}
+  .overlay{display:none;position:fixed;inset:0;z-index:9999;background:rgba(6,16,30,.88);
+    backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);align-items:center;justify-content:center;padding:20px;
+    -webkit-tap-highlight-color:transparent;}
   .overlay-card{background:#0d1f36;border:.5px solid rgba(100,160,200,.22);border-radius:20px;
     width:100%;max-width:500px;padding:24px;max-height:90vh;overflow-y:auto;}
   .overlay-card::-webkit-scrollbar{display:none;}
@@ -185,7 +226,7 @@
           <div id="clock-date">—</div>
           <div id="clock-time">—</div>
         </div>
-        <button onclick="showConfig()" id="gear-btn" title="Settings" style="background:none;border:none;cursor:pointer;padding:4px;border-radius:8px;color:var(--text-dim);font-size:20px;line-height:1;transition:color .2s;">⚙</button>
+        <button onclick="showConfig()" id="gear-btn" title="Settings" style="background:rgba(255,255,255,.06);border:.5px solid var(--card-border);cursor:pointer;padding:6px 10px;border-radius:8px;color:var(--text-dim);font-size:11px;font-family:'DM Sans',sans-serif;font-weight:500;letter-spacing:.5px;text-transform:uppercase;transition:all .2s;-webkit-tap-highlight-color:transparent;">Settings</button>
       </div>
     </div>
   </header>
@@ -214,59 +255,14 @@
         <button class="update-hrs-btn" onclick="showUpdateHours()">⏱ Update Engine Hours</button>
       </div>
 
-      <!-- Collapsible: Oil -->
-      <div class="coll-section open" id="cs-oil">
-        <div class="coll-header" onclick="toggleSection('cs-oil')">
-          <div class="coll-left">
-            <div class="coll-icon" style="background:rgba(200,146,42,.15);font-size:16px;">🛢</div>
-            <div>
-              <div class="coll-title">Oil</div>
-              <div class="coll-summary" id="cs-oil-summary">Loading…</div>
-            </div>
-          </div>
-          <div class="coll-right">
-            <div class="coll-badges" id="cs-oil-badges"></div>
-            <span class="coll-chevron">▼</span>
-          </div>
-        </div>
-        <div class="coll-body"><div class="coll-grid" id="cs-oil-cards"></div></div>
+      <!-- Section toolbar -->
+      <div class="section-toolbar">
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-dim);">Service Status</div>
+        <button class="reorder-btn" id="reorder-toggle-btn" onclick="toggleReorderMode()">⠿ Reorder</button>
       </div>
 
-      <!-- Collapsible: Fluids -->
-      <div class="coll-section open" id="cs-fluids">
-        <div class="coll-header" onclick="toggleSection('cs-fluids')">
-          <div class="coll-left">
-            <div class="coll-icon" style="background:rgba(55,138,221,.15);font-size:16px;">💧</div>
-            <div>
-              <div class="coll-title">Fluids & Filters</div>
-              <div class="coll-summary" id="cs-fluids-summary">Loading…</div>
-            </div>
-          </div>
-          <div class="coll-right">
-            <div class="coll-badges" id="cs-fluids-badges"></div>
-            <span class="coll-chevron">▼</span>
-          </div>
-        </div>
-        <div class="coll-body"><div class="coll-grid" id="cs-fluids-cards"></div></div>
-      </div>
-
-      <!-- Collapsible: Components -->
-      <div class="coll-section open" id="cs-components">
-        <div class="coll-header" onclick="toggleSection('cs-components')">
-          <div class="coll-left">
-            <div class="coll-icon" style="background:rgba(45,184,138,.15);font-size:16px;">⚙️</div>
-            <div>
-              <div class="coll-title">Components</div>
-              <div class="coll-summary" id="cs-components-summary">Loading…</div>
-            </div>
-          </div>
-          <div class="coll-right">
-            <div class="coll-badges" id="cs-components-badges"></div>
-            <span class="coll-chevron">▼</span>
-          </div>
-        </div>
-        <div class="coll-body"><div class="coll-grid" id="cs-components-cards"></div></div>
-      </div>
+      <!-- Sections container (order is dynamic) -->
+      <div id="sections-container"></div>
 
     </div>
 
@@ -351,7 +347,8 @@
         </div>
         <div>
           <label class="field-label">Component *</label>
-          <input id="ae-component" type="text" placeholder="e.g. Oil, Impeller, Belt…" class="field-input">
+          <input id="ae-component" type="text" list="comp-datalist" placeholder="Select or type…" class="field-input" autocomplete="off">
+          <datalist id="comp-datalist"></datalist>
         </div>
         <div>
           <label class="field-label">Part Number</label>
@@ -419,7 +416,7 @@
         </div>
         <div>
           <label class="field-label">Component *</label>
-          <input id="iv-component" type="text" placeholder="e.g. Oil, Impeller, Belt…" class="field-input">
+          <input id="iv-component" type="text" list="comp-datalist" placeholder="Select or type…" class="field-input" autocomplete="off">
         </div>
         <div>
           <label class="field-label">Interval (engine hours) *</label>
@@ -454,9 +451,44 @@
           <label class="field-label">Vessel ID</label>
           <input id="cfg-vessel-id" type="text" placeholder="e.g. OA 423" class="field-input mono-input">
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px;">
-          <button class="btn-ghost" onclick="hideConfig()">Cancel</button>
-          <button class="btn-primary" onclick="saveConfig()">Save</button>
+        <div>
+          <label class="field-label">Appearance</label>
+          <div class="theme-toggle">
+            <button class="theme-btn" id="theme-dark-btn" onclick="setTheme('dark')">🌙 Dark</button>
+            <button class="theme-btn" id="theme-light-btn" onclick="setTheme('light')">☀️ Light</button>
+          </div>
+        </div>
+        <!-- Component List -->
+        <div style="border-top:.5px solid var(--card-border);padding-top:14px;">
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text-dim);margin-bottom:10px;">Components</div>
+          <div id="comp-tags" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;min-height:32px;"></div>
+          <div style="display:flex;gap:8px;">
+            <input id="new-comp-input" type="text" placeholder="Add component…" class="field-input" style="flex:1;padding:8px 12px;"
+              onkeydown="if(event.key==='Enter'){event.preventDefault();addComponent();}">
+            <button onclick="addComponent()" class="btn-ghost" style="padding:8px 14px;white-space:nowrap;">+ Add</button>
+          </div>
+        </div>
+
+        <!-- Backup / Restore -->
+        <div style="border-top:.5px solid var(--card-border);padding-top:14px;">
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text-dim);margin-bottom:10px;">Data</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            <button class="btn-ghost" onclick="exportData()" style="font-size:12px;padding:9px;">⬇ Export Backup</button>
+            <label style="display:block;">
+              <span class="btn-ghost" style="display:block;text-align:center;font-size:12px;padding:9px;cursor:pointer;border-radius:10px;border:.5px solid var(--card-border);color:var(--text-dim);">⬆ Import Backup</span>
+              <input type="file" accept=".json" style="display:none;" onchange="importData(this.files[0])">
+            </label>
+          </div>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding-top:8px;border-top:.5px solid var(--card-border);">
+          <div>
+            <div style="font-size:10px;color:var(--text-dim);font-family:'DM Mono',monospace;letter-spacing:.5px;" id="version-display">VERSION 1.1.0</div>
+            <div style="font-size:11px;color:var(--brass);font-family:'Bebas Neue',sans-serif;letter-spacing:1.5px;margin-top:3px;">by Captain David</div>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn-ghost" onclick="hideConfig()">Cancel</button>
+            <button class="btn-primary" style="width:auto;padding:10px 20px;" onclick="saveConfig()">Save</button>
+          </div>
         </div>
       </div>
     </div>
@@ -465,10 +497,12 @@
 </div><!-- app -->
 
 <script>
-const LS_LOG       = 'ss_log';
-const LS_INTERVALS = 'ss_intervals';
-const LS_HRS       = 'ss_manual_hrs';
-const LS_CONFIG    = 'ss_config';
+const LS_LOG        = 'ss_log';
+const LS_INTERVALS  = 'ss_intervals';
+const LS_HRS        = 'ss_manual_hrs';
+const LS_CONFIG     = 'ss_config';
+const LS_DATA_VER   = 'ss_data_version';
+const LS_COMPONENTS = 'ss_components';
 
 const SEED_LOG = [
   {date:'6/1/2026',  hours:3137, system:'Stb Engine',  component:'Oil',           part:'NAPA 5168',      action:'Replaced', notes:''},
@@ -503,37 +537,145 @@ let RAW = [];
 let INTERVALS = [];
 let CURRENT_HRS = {};
 let MANUAL_HRS = {};
-let CONFIG = { boatName: 'Sunset Serenade', vesselId: 'OA 423' };
+let CONFIG = { boatName: 'Sunset Serenade', vesselId: 'OA 423', theme: 'dark', sectionOrder: ['oil','fluids','components'] };
 const SYS_COLOR = {'Port Engine':'#378add','Stb Engine':'#2db88a','Generator':'#d86030','Engines':'#7f77dd'};
+
+const SEED_COMPONENTS = [
+  'Oil','Fuel Filter','Racor','Impeller','Belt','Zinc','Heat XChangers',
+  'Coolant','Gear Oil','Transmission Fluid','Sea Strainer','Raw Water Pump',
+  'Thermostat','Hose','Clamp','Shaft Seal','Cutlass Bearing','Prop',
+  'Battery','Alternator','Starter',
+];
+let COMPONENTS = [];
 
 // ── STORAGE ──
 function saveAll() {
   try {
-    localStorage.setItem(LS_LOG,       JSON.stringify(RAW));
-    localStorage.setItem(LS_INTERVALS, JSON.stringify(INTERVALS.map(iv=>({system:iv.system,component:iv.component,interval:iv.interval}))));
-    localStorage.setItem(LS_HRS,       JSON.stringify(MANUAL_HRS));
-    localStorage.setItem(LS_CONFIG,    JSON.stringify(CONFIG));
-  } catch(e){}
+    localStorage.setItem(LS_LOG,        JSON.stringify(RAW));
+    localStorage.setItem(LS_INTERVALS,  JSON.stringify(INTERVALS.map(iv=>({system:iv.system,component:iv.component,interval:iv.interval}))));
+    localStorage.setItem(LS_HRS,        JSON.stringify(MANUAL_HRS));
+    localStorage.setItem(LS_CONFIG,     JSON.stringify(CONFIG));
+    localStorage.setItem(LS_DATA_VER,   DATA_VERSION);
+    localStorage.setItem(LS_COMPONENTS, JSON.stringify(COMPONENTS));
+  } catch(e){ console.warn('Save failed:', e); }
+}
+
+// Migrations: keyed by the FROM version. Each returns the mutated data.
+const MIGRATIONS = {
+  // Example for future use:
+  // '1': function(data) { /* transform data from v1 → v2 */ return data; }
+};
+
+function runMigrations(storedVer, data) {
+  let v = String(storedVer || '0');
+  const target = String(DATA_VERSION);
+  while (v !== target && MIGRATIONS[v]) {
+    console.log(`Migrating data from v${v}…`);
+    data = MIGRATIONS[v](data);
+    v = String(Number(v) + 1);
+  }
+  return data;
 }
 
 function loadAll() {
   try {
+    const storedVer = localStorage.getItem(LS_DATA_VER);
     const log = localStorage.getItem(LS_LOG);
     const ivs = localStorage.getItem(LS_INTERVALS);
     const hrs = localStorage.getItem(LS_HRS);
     const cfg = localStorage.getItem(LS_CONFIG);
-    RAW = log ? JSON.parse(log) : JSON.parse(JSON.stringify(SEED_LOG));
-    MANUAL_HRS = hrs ? JSON.parse(hrs) : {};
-    if (cfg) CONFIG = Object.assign(CONFIG, JSON.parse(cfg));
-    const rawIvs = ivs ? JSON.parse(ivs) : SEED_INTERVALS;
-    rebuildIntervals(rawIvs);
-    if (!log) saveAll();
+
+    const firstRun = !log;
+
+    // Parse raw stored values
+    const comps    = localStorage.getItem(LS_COMPONENTS);
+    let parsedLog  = log   ? JSON.parse(log)   : JSON.parse(JSON.stringify(SEED_LOG));
+    let parsedIvs  = ivs   ? JSON.parse(ivs)   : SEED_INTERVALS.map(iv=>({...iv}));
+    let parsedHrs  = hrs   ? JSON.parse(hrs)   : {};
+    let parsedCfg  = cfg   ? JSON.parse(cfg)   : {};
+    let parsedComps= comps ? JSON.parse(comps) : [...SEED_COMPONENTS];
+
+    // Run any pending migrations (no-op if storedVer === DATA_VERSION)
+    if (!firstRun && storedVer !== DATA_VERSION) {
+      const migrated = runMigrations(storedVer, { log: parsedLog, ivs: parsedIvs, hrs: parsedHrs });
+      parsedLog = migrated.log;
+      parsedIvs = migrated.ivs;
+      parsedHrs = migrated.hrs;
+    }
+
+    // Apply
+    RAW        = parsedLog;
+    MANUAL_HRS = parsedHrs;
+    CONFIG     = Object.assign(CONFIG, parsedCfg);
+    COMPONENTS = parsedComps;
+    rebuildIntervals(parsedIvs);
+
+    // First run — persist seed data and stamp version
+    if (firstRun) saveAll();
+    // Post-migration — stamp new version
+    else if (storedVer !== DATA_VERSION) {
+      console.log(`Data migrated to v${DATA_VERSION}`);
+      saveAll();
+    }
+
   } catch(e) {
+    console.error('Load failed, falling back to seed:', e);
     RAW = JSON.parse(JSON.stringify(SEED_LOG));
     MANUAL_HRS = {};
+    CONFIG = Object.assign(CONFIG, {});
+    COMPONENTS = [...SEED_COMPONENTS];
     rebuildIntervals(SEED_INTERVALS);
   }
   recalcHrs();
+}
+
+// ── EXPORT / IMPORT ──
+function exportData() {
+  const payload = {
+    exportedAt: new Date().toISOString(),
+    appVersion: APP_VERSION,
+    dataVersion: DATA_VERSION,
+    boatName: CONFIG.boatName,
+    log: RAW,
+    intervals: INTERVALS.map(iv=>({system:iv.system,component:iv.component,interval:iv.interval})),
+    manualHrs: MANUAL_HRS,
+    config: CONFIG,
+    components: COMPONENTS,
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  const date = new Date().toISOString().slice(0,10);
+  a.href = url;
+  a.download = `${(CONFIG.boatName||'vessel').replace(/\s+/g,'-').toLowerCase()}-maintenance-${date}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importData(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const payload = JSON.parse(e.target.result);
+      if (!payload.log || !Array.isArray(payload.log)) throw new Error('Invalid backup file.');
+      if (!confirm(`Import ${payload.log.length} log entries from backup dated ${payload.exportedAt?.slice(0,10)||'unknown'}?\n\nThis will REPLACE current data.`)) return;
+      RAW        = payload.log;
+      MANUAL_HRS = payload.manualHrs || {};
+      CONFIG     = Object.assign(CONFIG, payload.config || {});
+      COMPONENTS = payload.components || [...SEED_COMPONENTS];
+      rebuildIntervals(payload.intervals || SEED_INTERVALS);
+      saveAll();
+      recalcHrs();
+      applyConfig();
+      refreshAll();
+      hideConfig();
+      alert('Import successful — ' + RAW.length + ' entries loaded.');
+    } catch(err) {
+      alert('Import failed: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
 }
 
 function rebuildIntervals(rawIvs) {
@@ -562,17 +704,77 @@ function recalcHrs() {
 }
 
 // ── CONFIG ──
+const APP_VERSION  = '1.1.0';  // bump this on every release
+const DATA_VERSION = '1';      // bump only when storage schema changes
+
+function setTheme(mode) {
+  CONFIG.theme = mode;
+  document.documentElement.classList.toggle('light', mode === 'light');
+  const darkBtn  = document.getElementById('theme-dark-btn');
+  const lightBtn = document.getElementById('theme-light-btn');
+  if (darkBtn)  darkBtn.classList.toggle('active',  mode === 'dark');
+  if (lightBtn) lightBtn.classList.toggle('active', mode === 'light');
+}
+
+// ── COMPONENTS ──
+function refreshCompDatalist() {
+  const dl = document.getElementById('comp-datalist');
+  if (dl) dl.innerHTML = COMPONENTS.map(c=>`<option value="${c}">`).join('');
+}
+
+function renderCompTags() {
+  const el = document.getElementById('comp-tags');
+  if (!el) return;
+  if (!COMPONENTS.length) {
+    el.innerHTML='<span style="font-size:12px;color:var(--text-dim);">No components yet.</span>';
+    return;
+  }
+  el.innerHTML = COMPONENTS.map((c,i)=>`
+    <span style="display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,.06);
+      border:.5px solid var(--card-border);border-radius:14px;padding:4px 10px;font-size:12px;">
+      ${c}
+      <button onclick="removeComponent(${i})" style="background:none;border:none;color:var(--text-dim);
+        cursor:pointer;font-size:14px;line-height:1;padding:0 2px;" title="Remove">&times;</button>
+    </span>`).join('');
+}
+
+function addComponent() {
+  const inp = document.getElementById('new-comp-input');
+  if (!inp) return;
+  const val = inp.value.trim();
+  if (!val) return;
+  if (COMPONENTS.some(c=>c.toLowerCase()===val.toLowerCase())) { inp.value=''; return; }
+  COMPONENTS.push(val);
+  COMPONENTS.sort((a,b)=>a.localeCompare(b));
+  saveAll();
+  refreshCompDatalist();
+  renderCompTags();
+  inp.value='';
+}
+
+function removeComponent(idx) {
+  COMPONENTS.splice(idx,1);
+  saveAll();
+  refreshCompDatalist();
+  renderCompTags();
+}
+
 function applyConfig() {
   document.getElementById('vessel-name-el').textContent = CONFIG.boatName || 'Sunset Serenade';
   document.getElementById('vessel-id-el').textContent   = CONFIG.vesselId  || 'OA 423';
   document.title = (CONFIG.boatName || 'Sunset Serenade') + ' — Maintenance';
   const meta = document.querySelector('meta[name="apple-mobile-web-app-title"]');
   if (meta) meta.content = CONFIG.boatName || 'Sunset Serenade';
+  setTheme(CONFIG.theme || 'dark');
+  const vEl = document.getElementById('version-display');
+  if (vEl) vEl.textContent = `VERSION ${APP_VERSION}  ·  DATA v${DATA_VERSION}`;
 }
 
 function showConfig() {
   document.getElementById('cfg-boat-name').value = CONFIG.boatName || '';
   document.getElementById('cfg-vessel-id').value = CONFIG.vesselId  || '';
+  setTheme(CONFIG.theme || 'dark');
+  renderCompTags();
   document.getElementById('config-overlay').style.display = 'flex';
 }
 
@@ -585,6 +787,7 @@ function saveConfig() {
   const id   = document.getElementById('cfg-vessel-id').value.trim();
   if (name) CONFIG.boatName = name;
   if (id)   CONFIG.vesselId  = id;
+  // theme already applied live via setTheme()
   saveAll();
   applyConfig();
   hideConfig();
@@ -693,24 +896,30 @@ function deleteEntry(idx) {
 
 // ── OVERVIEW ──
 
-// Categories: which components fall in which section
-const OV_CATS = {
-  oil:        ['oil'],
-  fluids:     ['fuel filter','racor','coolant','fluid','antifreeze','transmission fluid','gear oil'],
-  components: [], // catch-all
+// Section definitions
+const SECTION_DEFS = {
+  oil:        { label:'Oil',             icon:'🛢',  iconBg:'rgba(200,146,42,.15)',  keywords:['oil'] },
+  fluids:     { label:'Fluids & Filters',icon:'💧',  iconBg:'rgba(55,138,221,.15)',  keywords:['fuel filter','racor','coolant','fluid','antifreeze','transmission fluid','gear oil'] },
+  components: { label:'Components',      icon:'⚙️',  iconBg:'rgba(45,184,138,.15)',  keywords:[] },
 };
+
+const DEFAULT_SECTION_ORDER = ['oil','fluids','components'];
+let sectionOrder = [...DEFAULT_SECTION_ORDER];
+let activeCompFilter = 'All';
+let reorderMode = false;
+let dragSrcId = null;
 
 function compCategory(comp) {
   const c = comp.toLowerCase();
-  if (OV_CATS.oil.some(k=>c.includes(k)))    return 'oil';
-  if (OV_CATS.fluids.some(k=>c.includes(k))) return 'fluids';
+  if (SECTION_DEFS.oil.keywords.some(k=>c.includes(k)))    return 'oil';
+  if (SECTION_DEFS.fluids.keywords.some(k=>c.includes(k))) return 'fluids';
   return 'components';
 }
 
 function icardHTML(s) {
   return `<div class="icard ${s.cls}">
     <div class="icard-top">
-      <div class="icard-name"><span class="sys-dot" style="background:${SYS_COLOR[s.sys]||'#888'}"></span>${s.sys}</div>
+      <div class="icard-name"><span class="sys-dot" style="background:${SYS_COLOR[s.sys]||'#888'}"></span>${s.sys} — ${s.comp}</div>
       <div class="icard-status">${s.cls==='due'?'OVERDUE':s.rem+' hrs left'}</div>
     </div>
     <div class="progress-track"><div class="progress-fill" style="width:${Math.round(s.pct)}%"></div></div>
@@ -719,19 +928,16 @@ function icardHTML(s) {
 }
 
 function lastServiceRow(sys, comp) {
-  return RAW.filter(r=>r.system===sys&&r.component.toLowerCase()===comp.toLowerCase()&&r.hours!=null)
+  return RAW.filter(r=>r.system===sys&&r.component.toLowerCase()===comp.toLowerCase())
             .sort((a,b)=>pDate(b.date)-pDate(a.date))[0]||null;
 }
 
-function buildOvSection(sectionId, comps) {
-  // comps: array of unique component names belonging to this section
-  // For each: find all systems that have a log entry, build icard or plain last-service card
-  const cardsHTML = [];
-  const statusDots = [];
+function buildOvSectionHTML(sectionId, comps, compFilter) {
+  const filtered = compFilter==='All' ? comps : comps.filter(c=>c.toLowerCase()===compFilter.toLowerCase());
+  const cardsHTML = [], statusDots = [];
 
-  comps.forEach(comp => {
+  filtered.forEach(comp => {
     const systems = [...new Set(RAW.filter(r=>r.component.toLowerCase()===comp.toLowerCase()).map(r=>r.system))];
-    // Check if there's an interval configured
     const ivMatch = INTERVALS.find(iv=>iv.component.toLowerCase()===comp.toLowerCase());
     if (ivMatch) {
       ivMatch.sysMatch.forEach(sys=>{
@@ -739,7 +945,6 @@ function buildOvSection(sectionId, comps) {
         if (s) { cardsHTML.push(icardHTML(s)); statusDots.push(s.cls); }
       });
     } else {
-      // No interval — show last service card per system
       systems.forEach(sys=>{
         const last = lastServiceRow(sys, comp);
         if (!last) return;
@@ -748,32 +953,120 @@ function buildOvSection(sectionId, comps) {
             <div class="icard-name"><span class="sys-dot" style="background:${SYS_COLOR[sys]||'#888'}"></span>${sys} — ${comp}</div>
             <div class="icard-status" style="color:var(--text-dim);">${last.action||'Serviced'}</div>
           </div>
-          <div class="icard-detail" style="margin-top:4px;"><span>${last.date}</span><span class="mono">${last.hours ? last.hours+' hrs' : '—'}</span></div>
+          <div class="icard-detail" style="margin-top:4px;"><span>${last.date}</span><span class="mono">${last.hours?last.hours+' hrs':'—'}</span></div>
         </div>`);
         statusDots.push('ok');
       });
     }
   });
 
-  // Summary text
-  const due  = statusDots.filter(d=>d==='due').length;
-  const warn = statusDots.filter(d=>d==='warn').length;
-  const ok   = statusDots.filter(d=>d==='ok').length;
-  let summary = `${comps.length} component${comps.length!==1?'s':''}`;
+  const due=statusDots.filter(d=>d==='due').length, warn=statusDots.filter(d=>d==='warn').length, ok=statusDots.filter(d=>d==='ok').length;
+  let summary = compFilter!=='All' ? `Showing: ${compFilter}` : `${comps.length} component${comps.length!==1?'s':''}`;
   if (due)  summary += ` · ${due} overdue`;
   if (warn) summary += ` · ${warn} due soon`;
-  if (!due && !warn && ok) summary += ' · all current';
+  if (!due&&!warn&&ok&&compFilter==='All') summary += ' · all current';
 
-  // Badge dots
   const badges = [...statusDots.filter(d=>d==='due').map(()=>`<span class="status-dot" style="background:var(--danger);"></span>`),
                   ...statusDots.filter(d=>d==='warn').map(()=>`<span class="status-dot" style="background:var(--warn);"></span>`),
                   ...statusDots.filter(d=>d==='ok').map(()=>`<span class="status-dot" style="background:var(--good);"></span>`)].join('');
 
-  document.getElementById(sectionId+'-summary').textContent = summary;
-  document.getElementById(sectionId+'-badges').innerHTML = badges;
-  document.getElementById(sectionId+'-cards').innerHTML = cardsHTML.length
-    ? cardsHTML.join('')
-    : `<div style="color:var(--text-dim);font-size:12px;padding:4px 2px;">No entries logged.</div>`;
+  const def = SECTION_DEFS[sectionId];
+  return `<div class="coll-section open" id="cs-${sectionId}"
+      draggable="false"
+      ondragstart="onDragStart(event,'${sectionId}')"
+      ondragover="onDragOver(event,'${sectionId}')"
+      ondragend="onDragEnd(event)"
+      ondrop="onDrop(event,'${sectionId}')">
+    <div class="coll-header" onclick="handleSectionClick(event,'cs-${sectionId}')">
+      <div class="coll-left">
+        <div class="drag-handle" title="Drag to reorder">⠿</div>
+        <div class="coll-icon" style="background:${def.iconBg};font-size:16px;">${def.icon}</div>
+        <div>
+          <div class="coll-title">${def.label}</div>
+          <div class="coll-summary">${summary}</div>
+        </div>
+      </div>
+      <div class="coll-right">
+        <div class="coll-badges">${badges}</div>
+        <span class="coll-chevron">▼</span>
+      </div>
+    </div>
+    <div class="coll-body">
+      ${sectionId==='components' ? `<div class="comp-filter-row" id="comp-filter-row" style="margin-bottom:10px;"></div>` : ''}
+      <div class="coll-grid">${
+        cardsHTML.length ? cardsHTML.join('') : '<div style="color:var(--text-dim);font-size:12px;padding:4px 2px;">No entries logged.</div>'
+      }</div>
+    </div>
+  </div>`;
+}
+
+function handleSectionClick(e, id) {
+  if (reorderMode) return;
+  document.getElementById(id).classList.toggle('open');
+}
+
+// ── DRAG REORDER ──
+function toggleReorderMode() {
+  reorderMode = !reorderMode;
+  document.body.classList.toggle('reorder-mode', reorderMode);
+  document.getElementById('reorder-toggle-btn').classList.toggle('active', reorderMode);
+  document.getElementById('reorder-toggle-btn').textContent = reorderMode ? '✓ Done' : '⠿ Reorder';
+  // Enable/disable draggable
+  document.querySelectorAll('.coll-section').forEach(el => {
+    el.draggable = reorderMode;
+  });
+}
+
+function onDragStart(e, id) {
+  if (!reorderMode) { e.preventDefault(); return; }
+  dragSrcId = id;
+  e.dataTransfer.effectAllowed = 'move';
+  setTimeout(()=>{ const el=document.getElementById('cs-'+id); if(el) el.classList.add('dragging'); }, 0);
+}
+
+function onDragOver(e, id) {
+  if (!reorderMode || id===dragSrcId) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  document.querySelectorAll('.coll-section').forEach(el=>el.classList.remove('drag-over'));
+  const el = document.getElementById('cs-'+id);
+  if (el) el.classList.add('drag-over');
+}
+
+function onDrop(e, targetId) {
+  if (!reorderMode || targetId===dragSrcId) return;
+  e.preventDefault();
+  const srcIdx = sectionOrder.indexOf(dragSrcId);
+  const tgtIdx = sectionOrder.indexOf(targetId);
+  sectionOrder.splice(srcIdx,1);
+  sectionOrder.splice(tgtIdx,0,dragSrcId);
+  CONFIG.sectionOrder = [...sectionOrder];
+  saveAll();
+  buildOverview();
+}
+
+function onDragEnd(e) {
+  document.querySelectorAll('.coll-section').forEach(el=>{
+    el.classList.remove('dragging','drag-over');
+  });
+  dragSrcId = null;
+}
+
+// ── COMPONENT FILTER ──
+function buildCompFilter(compComps) {
+  const el = document.getElementById('comp-filter-row');
+  if (!el) return;
+  if (compComps.length <= 1) { el.innerHTML=''; return; }
+  const pills = ['All',...compComps].map(c=>`
+    <button class="cfpill ${c===activeCompFilter?'active':''}" onclick="setCompFilter('${c.replace(/'/g,"\'")}')">
+      ${c}
+    </button>`).join('');
+  el.innerHTML = pills;
+}
+
+function setCompFilter(comp) {
+  activeCompFilter = comp;
+  buildOverview();
 }
 
 function toggleSection(id) {
@@ -783,6 +1076,9 @@ function toggleSection(id) {
 function buildOverview() {
   if (!RAW.length) return;
 
+  // Restore saved order
+  if (CONFIG.sectionOrder) sectionOrder = CONFIG.sectionOrder;
+
   // Engine hours display
   document.getElementById('ov-port-hrs').textContent = CURRENT_HRS['Port Engine'] ? Number(CURRENT_HRS['Port Engine']).toLocaleString() : '—';
   document.getElementById('ov-stbd-hrs').textContent = CURRENT_HRS['Stb Engine']  ? Number(CURRENT_HRS['Stb Engine']).toLocaleString()  : '—';
@@ -790,13 +1086,23 @@ function buildOverview() {
 
   // Categorize components
   const allComps = [...new Set(RAW.map(r=>r.component))];
-  const oilComps  = allComps.filter(c=>compCategory(c)==='oil');
-  const fluidComps= allComps.filter(c=>compCategory(c)==='fluids');
-  const compComps = allComps.filter(c=>compCategory(c)==='components');
+  const bySection = {
+    oil:        allComps.filter(c=>compCategory(c)==='oil'),
+    fluids:     allComps.filter(c=>compCategory(c)==='fluids'),
+    components: allComps.filter(c=>compCategory(c)==='components'),
+  };
 
-  buildOvSection('cs-oil',        oilComps.length   ? oilComps   : []);
-  buildOvSection('cs-fluids',     fluidComps.length ? fluidComps : []);
-  buildOvSection('cs-components', compComps.length  ? compComps  : []);
+  // Render sections in current order
+  const container = document.getElementById('sections-container');
+  container.innerHTML = sectionOrder.map(sid=>buildOvSectionHTML(sid, bySection[sid]||[], sid==='components' ? activeCompFilter : 'All')).join('');
+
+  // Build component filter pills inside the components section only
+  buildCompFilter(bySection.components||[]);
+
+  // Re-apply draggable state
+  document.querySelectorAll('.coll-section').forEach(el => {
+    el.draggable = reorderMode;
+  });
 }
 
 // ── LOG ──
@@ -960,6 +1266,7 @@ function refreshAll() { buildOverview(); buildLogFilters(); renderLog(); buildIn
 // ── INIT ──
 loadAll();
 applyConfig();
+refreshCompDatalist();
 refreshAll();
 updateClock();
 setInterval(updateClock, 1000);
