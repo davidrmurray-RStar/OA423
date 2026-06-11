@@ -215,11 +215,7 @@
       <div class="vessel-name" id="vessel-name-el">Sunset Serenade</div>
       <div class="vessel-sub"><span id="vessel-id-el">OA 423</span> · Maintenance</div>
     </div>
-    <div class="header-center">
-      <div class="hr-chip port"><span class="label">Port</span><span class="value">—</span></div>
-      <div class="hr-chip gen"><span class="label">Gen</span><span class="value">—</span></div>
-      <div class="hr-chip stbd"><span class="label">Stbd</span><span class="value">—</span></div>
-    </div>
+    <div class="header-center" id="header-chips" style="display:flex;gap:14px;align-items:flex-end;"></div>
     <div class="header-right">
       <div style="display:flex;align-items:center;gap:8px;">
         <div>
@@ -327,12 +323,7 @@
         <div class="field-grid-2">
           <div>
             <label class="field-label">System *</label>
-            <select id="ae-system" class="field-input">
-              <option value="Port Engine">Port Engine</option>
-              <option value="Stb Engine">Stb Engine</option>
-              <option value="Generator">Generator</option>
-              <option value="Engines">Engines</option>
-            </select>
+            <select id="ae-system" class="field-input"></select>
           </div>
           <div>
             <label class="field-label">Action</label>
@@ -373,25 +364,7 @@
         <span class="overlay-title">Update Hours</span>
         <button class="overlay-close" onclick="hideUpdateHours()">×</button>
       </div>
-      <div style="display:grid;gap:12px;">
-        <div>
-          <label class="field-label" style="color:var(--port);">Port Engine</label>
-          <input id="uh-port" type="number" placeholder="Current hours" class="field-input mono-input">
-        </div>
-        <div>
-          <label class="field-label" style="color:var(--stbd);">Stbd Engine</label>
-          <input id="uh-stbd" type="number" placeholder="Current hours" class="field-input mono-input">
-        </div>
-        <div>
-          <label class="field-label" style="color:var(--gen);">Generator</label>
-          <input id="uh-gen" type="number" placeholder="Current hours" class="field-input mono-input">
-        </div>
-        <p style="font-size:11px;color:var(--text-dim);margin-top:4px;">These override the max hours derived from log entries for interval calculations.</p>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-          <button class="btn-ghost" onclick="hideUpdateHours()">Cancel</button>
-          <button class="btn-primary" onclick="submitUpdateHours()">Update</button>
-        </div>
-      </div>
+      <div style="display:grid;gap:12px;" id="uh-fields"></div>
     </div>
   </div>
 
@@ -406,13 +379,7 @@
       <div style="display:grid;gap:12px;">
         <div>
           <label class="field-label">System *</label>
-          <select id="iv-system" class="field-input">
-            <option value="Engine">Engine (Port &amp; Stbd)</option>
-            <option value="Port Engine">Port Engine only</option>
-            <option value="Stb Engine">Stbd Engine only</option>
-            <option value="Generator">Generator</option>
-            <option value="Engines">Both Engines</option>
-          </select>
+          <select id="iv-system" class="field-input"></select>
         </div>
         <div>
           <label class="field-label">Component *</label>
@@ -469,6 +436,18 @@
           </div>
         </div>
 
+        <!-- System List -->
+        <div style="border-top:.5px solid var(--card-border);padding-top:14px;">
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text-dim);margin-bottom:10px;">Systems</div>
+          <div id="sys-tags" style="display:grid;gap:6px;margin-bottom:10px;"></div>
+          <div style="display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;">
+            <input id="new-sys-input" type="text" placeholder="System name…" class="field-input" style="padding:8px 12px;"
+              onkeydown="if(event.key==='Enter'){event.preventDefault();addSystem();}">
+            <input id="new-sys-color" type="color" value="#378add" style="width:36px;height:36px;border-radius:8px;border:.5px solid var(--card-border);background:none;cursor:pointer;padding:2px;">
+            <button onclick="addSystem()" class="btn-ghost" style="padding:8px 14px;white-space:nowrap;">+ Add</button>
+          </div>
+        </div>
+
         <!-- Backup / Restore -->
         <div style="border-top:.5px solid var(--card-border);padding-top:14px;">
           <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text-dim);margin-bottom:10px;">Data</div>
@@ -504,6 +483,7 @@ const LS_HRS        = 'ss_manual_hrs';
 const LS_CONFIG     = 'ss_config';
 const LS_DATA_VER   = 'ss_data_version';
 const LS_COMPONENTS = 'ss_components';
+const LS_SYSTEMS    = 'ss_systems';
 
 const SEED_LOG = [
   {date:'6/1/2026',  hours:3137, system:'Stb Engine',  component:'Oil',           part:'NAPA 5168',      action:'Replaced', notes:''},
@@ -539,7 +519,17 @@ let INTERVALS = [];
 let CURRENT_HRS = {};
 let MANUAL_HRS = {};
 let CONFIG = { boatName: 'Sunset Serenade', vesselId: 'OA 423', theme: 'dark', sectionOrder: ['oil','fluids','components'] };
-const SYS_COLOR = {'Port Engine':'#378add','Stb Engine':'#2db88a','Generator':'#d86030','Engines':'#7f77dd'};
+const SEED_SYSTEMS = [
+  {name:'Port Engine', color:'#378add'},
+  {name:'Stb Engine',  color:'#2db88a'},
+  {name:'Generator',   color:'#d86030'},
+  {name:'Engines',     color:'#7f77dd'},
+];
+let SYSTEMS = [];
+function SYS_COLOR(name) {
+  const s = SYSTEMS.find(s=>s.name===name);
+  return s ? s.color : '#888780';
+}
 
 const SEED_COMPONENTS = [
   'Oil','Fuel Filter','Racor','Impeller','Belt','Zinc','Heat XChangers',
@@ -558,6 +548,7 @@ function saveAll() {
     localStorage.setItem(LS_CONFIG,     JSON.stringify(CONFIG));
     localStorage.setItem(LS_DATA_VER,   DATA_VERSION);
     localStorage.setItem(LS_COMPONENTS, JSON.stringify(COMPONENTS));
+    localStorage.setItem(LS_SYSTEMS,    JSON.stringify(SYSTEMS));
   } catch(e){ console.warn('Save failed:', e); }
 }
 
@@ -590,11 +581,13 @@ function loadAll() {
 
     // Parse raw stored values
     const comps    = localStorage.getItem(LS_COMPONENTS);
+    const syss     = localStorage.getItem(LS_SYSTEMS);
     let parsedLog  = log   ? JSON.parse(log)   : JSON.parse(JSON.stringify(SEED_LOG));
     let parsedIvs  = ivs   ? JSON.parse(ivs)   : SEED_INTERVALS.map(iv=>({...iv}));
     let parsedHrs  = hrs   ? JSON.parse(hrs)   : {};
     let parsedCfg  = cfg   ? JSON.parse(cfg)   : {};
     let parsedComps= comps ? JSON.parse(comps) : [...SEED_COMPONENTS];
+    let parsedSys  = syss  ? JSON.parse(syss)  : JSON.parse(JSON.stringify(SEED_SYSTEMS));
 
     // Run any pending migrations (no-op if storedVer === DATA_VERSION)
     if (!firstRun && storedVer !== DATA_VERSION) {
@@ -609,6 +602,7 @@ function loadAll() {
     MANUAL_HRS = parsedHrs;
     CONFIG     = Object.assign(CONFIG, parsedCfg);
     COMPONENTS = parsedComps;
+    SYSTEMS    = parsedSys;
     rebuildIntervals(parsedIvs);
 
     // First run — persist seed data and stamp version
@@ -625,6 +619,7 @@ function loadAll() {
     MANUAL_HRS = {};
     CONFIG = Object.assign(CONFIG, {});
     COMPONENTS = [...SEED_COMPONENTS];
+    SYSTEMS    = JSON.parse(JSON.stringify(SEED_SYSTEMS));
     rebuildIntervals(SEED_INTERVALS);
   }
   recalcHrs();
@@ -642,6 +637,7 @@ function exportData() {
     manualHrs: MANUAL_HRS,
     config: CONFIG,
     components: COMPONENTS,
+    systems: SYSTEMS,
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
   const url  = URL.createObjectURL(blob);
@@ -665,6 +661,7 @@ function importData(file) {
       MANUAL_HRS = payload.manualHrs || {};
       CONFIG     = Object.assign(CONFIG, payload.config || {});
       COMPONENTS = payload.components || [...SEED_COMPONENTS];
+      SYSTEMS    = payload.systems    || JSON.parse(JSON.stringify(SEED_SYSTEMS));
       rebuildIntervals(payload.intervals || SEED_INTERVALS);
       saveAll();
       recalcHrs();
@@ -680,7 +677,9 @@ function importData(file) {
 }
 
 function rebuildIntervals(rawIvs) {
-  const engineSys = [...new Set(RAW.map(r=>r.system).filter(s=>s.includes('Engine')))];
+  const engineSys = SYSTEMS.length
+    ? SYSTEMS.filter(s=>s.name.toLowerCase().includes('engine')).map(s=>s.name)
+    : [...new Set(RAW.map(r=>r.system).filter(s=>s.includes('Engine')))];
   INTERVALS = rawIvs.map(iv=>({
     system: iv.system,
     sysMatch: iv.system==='Engine' ? engineSys : [iv.system],
@@ -695,9 +694,14 @@ function recalcHrs() {
     if (r.hours && r.system)
       if (!derived[r.system] || r.hours > derived[r.system]) derived[r.system] = r.hours;
   });
-  // Merge: manual overrides derived
   CURRENT_HRS = Object.assign({}, derived, MANUAL_HRS);
-  const chips = {port:'Port Engine', stbd:'Stb Engine', gen:'Generator'};
+  // Update dynamic header chips
+  SYSTEMS.forEach(s=>{
+    const el = document.getElementById('hc-'+s.name.replace(/\s+/g,'-'));
+    if (el) el.textContent = CURRENT_HRS[s.name] ? Number(CURRENT_HRS[s.name]).toLocaleString() : '—';
+  });
+  // Legacy static chips fallback
+  const chips = {'port':'Port Engine','stbd':'Stb Engine','gen':'Generator'};
   Object.entries(chips).forEach(([cls,sys])=>{
     const el = document.querySelector(`.hr-chip.${cls} .value`);
     if (el) el.textContent = CURRENT_HRS[sys] ? Number(CURRENT_HRS[sys]).toLocaleString() : '—';
@@ -715,6 +719,94 @@ function setTheme(mode) {
   const lightBtn = document.getElementById('theme-light-btn');
   if (darkBtn)  darkBtn.classList.toggle('active',  mode === 'dark');
   if (lightBtn) lightBtn.classList.toggle('active', mode === 'light');
+}
+
+// ── SYSTEMS ──
+function refreshSystemDropdowns() {
+  // Entry form
+  const ae = document.getElementById('ae-system');
+  if (ae) ae.innerHTML = SYSTEMS.map(s=>`<option value="${s.name}">${s.name}</option>`).join('');
+
+  // Interval form — individual systems + group options
+  const iv = document.getElementById('iv-system');
+  if (iv) {
+    const engineSys = SYSTEMS.filter(s=>s.name.toLowerCase().includes('engine'));
+    let opts = '';
+    if (engineSys.length > 1) opts += `<option value="Engine">All Engines (${engineSys.map(s=>s.name).join(' + ')})</option>`;
+    SYSTEMS.forEach(s=>{ opts += `<option value="${s.name}">${s.name}</option>`; });
+    iv.innerHTML = opts;
+  }
+
+  // Update Hours overlay — build dynamic fields
+  const uhFields = document.getElementById('uh-fields');
+  if (uhFields) {
+    uhFields.innerHTML = SYSTEMS.map(s=>`
+      <div>
+        <label class="field-label" style="color:${s.color};">${s.name}</label>
+        <input id="uh-${s.name.replace(/\s+/g,'-')}" type="number" placeholder="Current hours"
+          class="field-input mono-input" value="${CURRENT_HRS[s.name]||''}">
+      </div>`).join('') +
+      `<p style="font-size:11px;color:var(--text-dim);margin-top:4px;">These override the max hours derived from log entries.</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <button class="btn-ghost" onclick="hideUpdateHours()">Cancel</button>
+        <button class="btn-primary" onclick="submitUpdateHours()">Update</button>
+      </div>`;
+  }
+
+  // Header chips — rebuild dynamically
+  const hc = document.getElementById('header-chips');
+  if (hc) {
+    hc.innerHTML = SYSTEMS.map(s=>`
+      <div class="hr-chip" style="text-align:right;">
+        <span class="label" style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--text-dim);display:block;">${s.name.replace(' Engine','').replace('Generator','Gen')}</span>
+        <span class="value" id="hc-${s.name.replace(/\s+/g,'-')}" style="font-family:'DM Mono',monospace;font-size:14px;font-weight:500;color:${s.color};">—</span>
+      </div>`).join('');
+  }
+}
+
+function renderSysTags() {
+  const el = document.getElementById('sys-tags');
+  if (!el) return;
+  if (!SYSTEMS.length) { el.innerHTML='<span style="font-size:12px;color:var(--text-dim);">No systems configured.</span>'; return; }
+  el.innerHTML = SYSTEMS.map((s,i)=>`
+    <div style="display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.04);
+      border:.5px solid var(--card-border);border-radius:10px;padding:8px 12px;">
+      <input type="color" value="${s.color}" onchange="updateSysColor(${i},this.value)"
+        style="width:22px;height:22px;border-radius:50%;border:none;cursor:pointer;padding:0;background:none;flex-shrink:0;">
+      <span style="font-size:13px;font-weight:500;flex:1;color:${s.color};">${s.name}</span>
+      <button onclick="removeSys(${i})" style="background:none;border:none;color:var(--text-dim);
+        cursor:pointer;font-size:16px;line-height:1;padding:0 2px;" title="Remove">&times;</button>
+    </div>`).join('');
+}
+
+function addSystem() {
+  const inp   = document.getElementById('new-sys-input');
+  const color = document.getElementById('new-sys-color');
+  const name  = inp ? inp.value.trim() : '';
+  if (!name) return;
+  if (SYSTEMS.some(s=>s.name.toLowerCase()===name.toLowerCase())) { if(inp) inp.value=''; return; }
+  SYSTEMS.push({name, color: color ? color.value : '#888780'});
+  saveAll();
+  refreshSystemDropdowns();
+  renderSysTags();
+  if (inp)   inp.value = '';
+  if (color) color.value = '#378add';
+}
+
+function removeSys(idx) {
+  if (!confirm(`Remove system "${SYSTEMS[idx].name}"? Existing log entries will keep their system name.`)) return;
+  SYSTEMS.splice(idx,1);
+  saveAll();
+  refreshSystemDropdowns();
+  renderSysTags();
+}
+
+function updateSysColor(idx, color) {
+  SYSTEMS[idx].color = color;
+  saveAll();
+  refreshSystemDropdowns();
+  renderSysTags();
+  refreshAll();
 }
 
 // ── COMPONENTS ──
@@ -776,6 +868,7 @@ function showConfig() {
   document.getElementById('cfg-vessel-id').value = CONFIG.vesselId  || '';
   setTheme(CONFIG.theme || 'dark');
   renderCompTags();
+  renderSysTags();
   document.getElementById('config-overlay').style.display = 'flex';
 }
 
@@ -821,19 +914,15 @@ function intervalStatus(iv,sys){
 
 // ── UPDATE HOURS OVERLAY ──
 function showUpdateHours() {
-  document.getElementById('uh-port').value = CURRENT_HRS['Port Engine']||'';
-  document.getElementById('uh-stbd').value = CURRENT_HRS['Stb Engine']||'';
-  document.getElementById('uh-gen').value  = CURRENT_HRS['Generator']||'';
+  refreshSystemDropdowns(); // rebuilds uh-fields
   document.getElementById('hrs-overlay').style.display = 'flex';
 }
 function hideUpdateHours() { document.getElementById('hrs-overlay').style.display = 'none'; }
 function submitUpdateHours() {
-  const p = document.getElementById('uh-port').value.trim();
-  const s = document.getElementById('uh-stbd').value.trim();
-  const g = document.getElementById('uh-gen').value.trim();
-  if (p) MANUAL_HRS['Port Engine'] = Number(p);
-  if (s) MANUAL_HRS['Stb Engine']  = Number(s);
-  if (g) MANUAL_HRS['Generator']   = Number(g);
+  SYSTEMS.forEach(s=>{
+    const el = document.getElementById('uh-'+s.name.replace(/\s+/g,'-'));
+    if (el && el.value.trim()) MANUAL_HRS[s.name] = Number(el.value.trim());
+  });
   saveAll();
   recalcHrs();
   hideUpdateHours();
@@ -920,7 +1009,7 @@ function compCategory(comp) {
 function icardHTML(s) {
   return `<div class="icard ${s.cls}">
     <div class="icard-top">
-      <div class="icard-name"><span class="sys-dot" style="background:${SYS_COLOR[s.sys]||'#888'}"></span>${s.sys} — ${s.comp}</div>
+      <div class="icard-name"><span class="sys-dot" style="background:${SYS_COLOR(s.sys)||'#888'}"></span>${s.sys} — ${s.comp}</div>
       <div class="icard-status">${s.cls==='due'?'OVERDUE':s.rem+' hrs left'}</div>
     </div>
     <div class="progress-track"><div class="progress-fill" style="width:${Math.round(s.pct)}%"></div></div>
@@ -934,24 +1023,48 @@ function lastServiceRow(sys, comp) {
 }
 
 function buildOvSectionHTML(sectionId, comps, compFilter) {
-  const filtered = compFilter==='All' ? comps : comps.filter(c=>c.toLowerCase()===compFilter.toLowerCase());
+  // Only show components that have actual log entries
+  const filtered = compFilter==='All'
+    ? comps
+    : comps.filter(c=>c.toLowerCase()===compFilter.toLowerCase());
+
   const cardsHTML = [], statusDots = [];
 
   filtered.forEach(comp => {
-    const systems = [...new Set(RAW.filter(r=>r.component.toLowerCase()===comp.toLowerCase()).map(r=>r.system))];
+    // Systems that have a log entry for this component
+    const logSystems = [...new Set(RAW.filter(r=>r.component.toLowerCase()===comp.toLowerCase()).map(r=>r.system))];
+
     const ivMatch = INTERVALS.find(iv=>iv.component.toLowerCase()===comp.toLowerCase());
     if (ivMatch) {
+      // Interval-tracked: show only systems in the interval's sysMatch that have data
       ivMatch.sysMatch.forEach(sys=>{
         const s = intervalStatus(ivMatch, sys);
-        if (s) { cardsHTML.push(icardHTML(s)); statusDots.push(s.cls); }
+        if (s) {
+          cardsHTML.push(icardHTML(s));
+          statusDots.push(s.cls);
+        } else if (compFilter === 'All' && logSystems.includes(sys)) {
+          // Edge case: system has a log entry but intervalStatus returned null
+          // (e.g. missing hours field). Skip silently when filtering.
+          cardsHTML.push(`<div class="icard ok" style="opacity:.6;">
+            <div class="icard-top">
+              <div class="icard-name"><span class="sys-dot" style="background:${SYS_COLOR(sys)}"></span>${sys} — ${comp}</div>
+              <div class="icard-status" style="color:var(--text-dim);">No data</div>
+            </div>
+            <div class="icard-detail" style="margin-top:6px;"><span>Not yet logged</span><span>${ivMatch.interval} hr interval</span></div>
+          </div>`);
+          statusDots.push('ok');
+        }
       });
     } else {
-      systems.forEach(sys=>{
+      // No interval — show systems that HAVE a log entry for this component
+      // Plus a single placeholder card if this comp is in COMPONENTS list and a system
+      // exists with no entry (only show one placeholder per missing system, not for every comp)
+      logSystems.forEach(sys=>{
         const last = lastServiceRow(sys, comp);
         if (!last) return;
         cardsHTML.push(`<div class="icard ok">
           <div class="icard-top">
-            <div class="icard-name"><span class="sys-dot" style="background:${SYS_COLOR[sys]||'#888'}"></span>${sys} — ${comp}</div>
+            <div class="icard-name"><span class="sys-dot" style="background:${SYS_COLOR(sys)}"></span>${sys} — ${comp}</div>
             <div class="icard-status" style="color:var(--text-dim);">${last.action||'Serviced'}</div>
           </div>
           <div class="icard-detail" style="margin-top:4px;"><span>${last.date}</span><span class="mono">${last.hours?last.hours+' hrs':'—'}</span></div>
@@ -1097,8 +1210,9 @@ function buildOverview() {
   const container = document.getElementById('sections-container');
   container.innerHTML = sectionOrder.map(sid=>buildOvSectionHTML(sid, bySection[sid]||[], sid==='components' ? activeCompFilter : 'All')).join('');
 
-  // Build component filter pills inside the components section only
-  buildCompFilter(bySection.components||[]);
+  // Build component filter pills — only show components that have actual log entries
+  // (avoids filters that would result in empty views)
+  buildCompFilter(bySection.components || []);
 
   // Re-apply draggable state
   document.querySelectorAll('.coll-section').forEach(el => {
@@ -1122,7 +1236,7 @@ function renderLog() {
     const idx=RAW.indexOf(r);
     return `<tr>
       <td class="mono">${r.date}</td>
-      <td><span class="sys-dot" style="background:${SYS_COLOR[r.system]||'#888'}"></span>${r.system}</td>
+      <td><span class="sys-dot" style="background:${SYS_COLOR(r.system)||'#888'}"></span>${r.system}</td>
       <td>${r.component}</td>
       <td class="mono">${r.hours??'—'}</td>
       <td style="color:var(--text-dim);font-size:11px;">${r.part||'—'}</td>
@@ -1267,6 +1381,7 @@ function refreshAll() { buildOverview(); buildLogFilters(); renderLog(); buildIn
 // ── INIT ──
 loadAll();
 applyConfig();
+refreshSystemDropdowns();
 refreshCompDatalist();
 refreshAll();
 updateClock();

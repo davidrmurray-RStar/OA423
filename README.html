@@ -393,6 +393,7 @@
           <tr><td>Boat Name</td><td>Updates header, browser title, and home screen label</td></tr>
           <tr><td>Vessel ID</td><td>Updates the sub-header descriptor (e.g. OA 423)</td></tr>
           <tr><td>Appearance</td><td>🌙 Dark / ☀️ Light mode toggle — persists across sessions</td></tr>
+          <tr><td>Systems</td><td>Add, remove, or recolor systems (e.g. Port Engine, Generator, Watermaker). Each system gets a name and a color. The system list drives all dropdowns, the header chips, and color coding throughout the app.</td></tr>
           <tr><td>Components</td><td>Add or remove components from the dropdown list used in Add Entry and Add Interval forms. Type a name and tap + Add, or tap × on any tag to remove it. List is alphabetically sorted.</td></tr>
           <tr><td>⬇ Export Backup</td><td>Downloads a timestamped <code>.json</code> backup of all data including log, intervals, hours, component list, and config</td></tr>
           <tr><td>⬆ Import Backup</td><td>Restores from a previously exported <code>.json</code> file — confirms entry count before replacing</td></tr>
@@ -417,6 +418,7 @@
       <div class="key-card"><div class="key-name">ss_intervals</div><div class="key-desc">Service intervals</div></div>
       <div class="key-card"><div class="key-name">ss_manual_hrs</div><div class="key-desc">Manual engine hour overrides</div></div>
       <div class="key-card"><div class="key-name">ss_config</div><div class="key-desc">Boat name, vessel ID, theme, section order</div></div>
+      <div class="key-card"><div class="key-name">ss_systems</div><div class="key-desc">Configurable system list with colors</div></div>
       <div class="key-card"><div class="key-name">ss_components</div><div class="key-desc">Configurable component dropdown list</div></div>
       <div class="key-card"><div class="key-name">ss_data_version</div><div class="key-desc">Schema version for migrations</div></div>
     </div>
@@ -452,6 +454,7 @@
       <div class="qr-row"><span class="qr-action">Edit or delete an interval</span><span class="qr-where">Intervals tab → ✎ or ✕ on the row</span></div>
       <div class="qr-row"><span class="qr-action">Reorder overview sections</span><span class="qr-where">Overview → ⠿ Reorder</span></div>
       <div class="qr-row"><span class="qr-action">Filter components section</span><span class="qr-where">Overview → Components → pill row</span></div>
+      <div class="qr-row"><span class="qr-action">Add / remove / recolor systems</span><span class="qr-where">Settings → Systems</span></div>
       <div class="qr-row"><span class="qr-action">Add / remove components list</span><span class="qr-where">Settings → Components</span></div>
       <div class="qr-row"><span class="qr-action">Change boat name / vessel ID</span><span class="qr-where">Settings → Boat Name / Vessel ID</span></div>
       <div class="qr-row"><span class="qr-action">Switch dark / light mode</span><span class="qr-where">Settings → Appearance</span></div>
