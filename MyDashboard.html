@@ -63,8 +63,8 @@
   .vessel-sub{font-size:10px;color:var(--text-dim);letter-spacing:1.5px;text-transform:uppercase;white-space:nowrap;}
   .header-center{display:flex;gap:14px;align-items:flex-end;}
   .hr-chip{text-align:right;}
-  .hr-chip .label{font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--text-dim);display:block;}
-  .hr-chip .value{font-family:'DM Mono',monospace;font-size:14px;font-weight:500;}
+  .hr-chip .label{font-size:11px;text-transform:uppercase;letter-spacing:1.3px;color:var(--text-dim);display:block;font-weight:500;margin-bottom:3px;}
+  .hr-chip .value{font-family:'DM Mono',monospace;font-size:24px;font-weight:500;line-height:1;}
   .hr-chip.port .value{color:var(--port);}
   .hr-chip.stbd .value{color:var(--stbd);}
   .hr-chip.gen  .value{color:var(--gen);}
@@ -93,7 +93,8 @@
 
   /* INTERVAL CARDS */
   .icard{background:var(--card-bg);border:.5px solid var(--card-border);border-radius:var(--radius-sm);padding:14px 16px;position:relative;overflow:hidden;}
-  .icard::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:3px 0 0 3px;}
+  /* Status accent moved to the right side so left can show system color */
+  .icard::before{content:'';position:absolute;right:0;top:0;bottom:0;width:3px;border-radius:0 3px 3px 0;}
   .icard.ok::before{background:var(--good);} .icard.warn::before{background:var(--warn);} .icard.due::before{background:var(--danger);}
   .icard-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;}
   .icard-name{font-size:13px;font-weight:500;}
@@ -136,13 +137,12 @@
   .coll-section.open .coll-body{display:block;}
   .coll-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;}
   @media(max-width:600px){.coll-grid{grid-template-columns:1fr;}}
-  .hrs-row{display:flex;gap:10px;margin-bottom:16px;}
-  .hrs-card{flex:1;background:rgba(255,255,255,.03);border:.5px solid var(--card-border);border-radius:var(--radius-sm);padding:12px 14px;}
-  .hrs-card .h-label{font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--text-dim);display:block;margin-bottom:4px;}
-  .hrs-card .h-value{font-family:'DM Mono',monospace;font-size:20px;font-weight:500;}
-  .hrs-card.port .h-value{color:var(--port);}
-  .hrs-card.stbd .h-value{color:var(--stbd);}
-  .hrs-card.gen  .h-value{color:var(--gen);}
+  .hrs-row{display:flex;gap:12px;margin-bottom:20px;}
+  .hrs-card{flex:1;background:rgba(255,255,255,.04);border:.5px solid var(--card-border);border-radius:var(--radius);padding:18px 22px;position:relative;overflow:hidden;min-width:0;}
+  .hrs-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--sys-color,#888);}
+  .hrs-card .h-label{font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-dim);display:block;margin-bottom:8px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .hrs-card .h-value{font-family:'DM Mono',monospace;font-size:32px;font-weight:500;line-height:1;}
+  .hrs-card .h-suffix{font-family:'DM Sans',sans-serif;font-size:11px;color:var(--text-dim);margin-left:6px;text-transform:uppercase;letter-spacing:1px;vertical-align:middle;}
 
   /* CHART */
   .chart-card{background:var(--card-bg);border:.5px solid var(--card-border);border-radius:var(--radius);padding:16px;margin-bottom:16px;}
@@ -169,7 +169,10 @@
   tbody td{padding:9px 12px;border-bottom:.5px solid rgba(100,160,200,.06);color:var(--text);}
   tbody tr:last-child td{border-bottom:none;}
   tbody tr:hover td{background:rgba(255,255,255,.02);}
-  .sys-dot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:6px;vertical-align:middle;}
+  .sys-dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:8px;vertical-align:middle;box-shadow:0 0 0 2px rgba(255,255,255,.05);}
+  html.light .sys-dot{box-shadow:0 0 0 2px rgba(0,0,0,.05);}
+  .sys-pill{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:500;letter-spacing:.3px;line-height:1;border:.5px solid;}
+  .sys-pill .sys-dot{width:7px;height:7px;margin:0;box-shadow:none;}
   .mono{font-family:'DM Mono',monospace;font-size:11px;color:var(--text-dim);}
   .action-badge{font-size:10px;padding:2px 8px;border-radius:10px;font-weight:500;}
   .action-Replaced{background:rgba(58,170,122,.15);color:var(--good);}
@@ -240,11 +243,7 @@
       <div style="height:16px;"></div>
 
       <!-- Engine hours row -->
-      <div class="hrs-row" id="ov-hrs-row">
-        <div class="hrs-card port"><span class="h-label">Port Engine</span><span class="h-value" id="ov-port-hrs">—</span></div>
-        <div class="hrs-card gen"><span class="h-label">Generator</span><span class="h-value" id="ov-gen-hrs">—</span></div>
-        <div class="hrs-card stbd"><span class="h-label">Stbd Engine</span><span class="h-value" id="ov-stbd-hrs">—</span></div>
-      </div>
+      <div class="hrs-row" id="ov-hrs-row"></div>
 
       <!-- Update hours button -->
       <div style="margin-bottom:16px;">
@@ -315,15 +314,21 @@
             <label class="field-label">Date *</label>
             <input id="ae-date" type="text" placeholder="M/D/YYYY" class="field-input mono-input">
           </div>
-          <div>
+          <div id="ae-hours-wrap">
             <label class="field-label">Engine Hours</label>
             <input id="ae-hours" type="number" placeholder="e.g. 3140" class="field-input mono-input">
+          </div>
+          <div id="ae-hours-info" style="display:none;align-items:flex-end;">
+            <div style="font-size:11px;color:var(--text-dim);padding:0 4px 9px;line-height:1.4;">
+              <span style="display:inline-block;font-size:9px;padding:1px 7px;background:rgba(127,119,221,.15);color:#a09be8;border-radius:8px;letter-spacing:.5px;text-transform:uppercase;font-weight:500;margin-bottom:4px;">Date-tracked</span><br>
+              Engine hours not required
+            </div>
           </div>
         </div>
         <div class="field-grid-2">
           <div>
             <label class="field-label">System *</label>
-            <select id="ae-system" class="field-input"></select>
+            <select id="ae-system" class="field-input" onchange="updateEntryHoursVisibility()"></select>
           </div>
           <div>
             <label class="field-label">Action</label>
@@ -338,7 +343,7 @@
         </div>
         <div>
           <label class="field-label">Component *</label>
-          <input id="ae-component" type="text" list="comp-datalist" placeholder="Select or type…" class="field-input" autocomplete="off">
+          <input id="ae-component" type="text" list="comp-datalist" placeholder="Select or type…" class="field-input" autocomplete="off" oninput="updateEntryHoursVisibility()" onchange="updateEntryHoursVisibility()">
           <datalist id="comp-datalist"></datalist>
         </div>
         <div>
@@ -386,10 +391,17 @@
           <input id="iv-component" type="text" list="comp-datalist" placeholder="Select or type…" class="field-input" autocomplete="off">
         </div>
         <div>
-          <label class="field-label">Interval (engine hours) *</label>
+          <label class="field-label">Interval Type *</label>
+          <select id="iv-type" class="field-input" onchange="updateIvLabel()">
+            <option value="hours">Engine Hours</option>
+            <option value="days">Days (calendar-based)</option>
+          </select>
+        </div>
+        <div>
+          <label class="field-label" id="iv-interval-label">Interval (engine hours) *</label>
           <input id="iv-interval" type="number" placeholder="e.g. 200" class="field-input mono-input">
         </div>
-        <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">
+        <div style="font-size:11px;color:var(--text-dim);margin-top:2px;" id="iv-interval-hint">
           Interval is measured in engine hours since last matching log entry for that system and component.
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px;">
@@ -510,8 +522,8 @@ const SEED_LOG = [
   {date:'9/15/2025', hours:2948, system:'Port Engine',  component:'Fuel Filter',   part:'WIX 33528',      action:'Replaced', notes:''},
 ];
 const SEED_INTERVALS = [
-  {system:'Engine',    component:'Oil', interval:200},
-  {system:'Generator', component:'Oil', interval:100},
+  {system:'Engine',    component:'Oil', interval:200, type:'hours'},
+  {system:'Generator', component:'Oil', interval:100, type:'hours'},
 ];
 
 let RAW = [];
@@ -543,7 +555,7 @@ let COMPONENTS = [];
 function saveAll() {
   try {
     localStorage.setItem(LS_LOG,        JSON.stringify(RAW));
-    localStorage.setItem(LS_INTERVALS,  JSON.stringify(INTERVALS.map(iv=>({system:iv.system,component:iv.component,interval:iv.interval}))));
+    localStorage.setItem(LS_INTERVALS,  JSON.stringify(INTERVALS.map(iv=>({system:iv.system,component:iv.component,interval:iv.interval,type:iv.type||'hours'}))));
     localStorage.setItem(LS_HRS,        JSON.stringify(MANUAL_HRS));
     localStorage.setItem(LS_CONFIG,     JSON.stringify(CONFIG));
     localStorage.setItem(LS_DATA_VER,   DATA_VERSION);
@@ -554,8 +566,16 @@ function saveAll() {
 
 // Migrations: keyed by the FROM version. Each returns the mutated data.
 const MIGRATIONS = {
-  // Example for future use:
-  // '1': function(data) { /* transform data from v1 → v2 */ return data; }
+  // v1 → v2: stamp existing intervals as type:'hours' (they were all hours-based)
+  '1': function(data) {
+    if (data.ivs) {
+      data.ivs = data.ivs.map(iv => ({
+        ...iv,
+        type: iv.type || 'hours',
+      }));
+    }
+    return data;
+  },
 };
 
 function runMigrations(storedVer, data) {
@@ -633,7 +653,7 @@ function exportData() {
     dataVersion: DATA_VERSION,
     boatName: CONFIG.boatName,
     log: RAW,
-    intervals: INTERVALS.map(iv=>({system:iv.system,component:iv.component,interval:iv.interval})),
+    intervals: INTERVALS.map(iv=>({system:iv.system,component:iv.component,interval:iv.interval,type:iv.type||'hours'})),
     manualHrs: MANUAL_HRS,
     config: CONFIG,
     components: COMPONENTS,
@@ -685,6 +705,7 @@ function rebuildIntervals(rawIvs) {
     sysMatch: iv.system==='Engine' ? engineSys : [iv.system],
     component: iv.component,
     interval: Number(iv.interval),
+    type: iv.type || 'hours',
   }));
 }
 
@@ -709,8 +730,8 @@ function recalcHrs() {
 }
 
 // ── CONFIG ──
-const APP_VERSION  = '1.1.0';  // bump this on every release
-const DATA_VERSION = '1';      // bump only when storage schema changes
+const APP_VERSION  = '2.0.0';  // v2: date-based intervals + multiple intervals per component
+const DATA_VERSION = '2';      // bumps when storage schema changes
 
 function setTheme(mode) {
   CONFIG.theme = mode;
@@ -753,13 +774,17 @@ function refreshSystemDropdowns() {
       </div>`;
   }
 
-  // Header chips — rebuild dynamically
+  // Header chips — only show systems that have engine hours tracked
   const hc = document.getElementById('header-chips');
   if (hc) {
-    hc.innerHTML = SYSTEMS.map(s=>`
+    const chipSystems = SYSTEMS.filter(s => CURRENT_HRS[s.name] != null);
+    hc.innerHTML = chipSystems.map(s=>`
       <div class="hr-chip" style="text-align:right;">
-        <span class="label" style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--text-dim);display:block;">${s.name.replace(' Engine','').replace('Generator','Gen')}</span>
-        <span class="value" id="hc-${s.name.replace(/\s+/g,'-')}" style="font-family:'DM Mono',monospace;font-size:14px;font-weight:500;color:${s.color};">—</span>
+        <div style="display:flex;align-items:center;gap:6px;justify-content:flex-end;margin-bottom:4px;">
+          <span style="width:10px;height:10px;border-radius:50%;background:${s.color};box-shadow:0 0 0 2px rgba(255,255,255,.05);"></span>
+          <span class="label" style="font-size:11px;text-transform:uppercase;letter-spacing:1.3px;color:var(--text);display:block;font-weight:500;">${s.name.replace(' Engine','').replace('Generator','Gen')}</span>
+        </div>
+        <span class="value" id="hc-${s.name.replace(/\s+/g,'-')}" style="font-family:'DM Mono',monospace;font-size:24px;font-weight:500;line-height:1;color:${s.color};">—</span>
       </div>`).join('');
   }
 }
@@ -774,9 +799,23 @@ function renderSysTags() {
       <input type="color" value="${s.color}" onchange="updateSysColor(${i},this.value)"
         style="width:22px;height:22px;border-radius:50%;border:none;cursor:pointer;padding:0;background:none;flex-shrink:0;">
       <span style="font-size:13px;font-weight:500;flex:1;color:${s.color};">${s.name}</span>
+      <button onclick="moveSys(${i},-1)" ${i===0?'disabled':''} title="Move up"
+        style="background:none;border:none;color:${i===0?'rgba(122,155,176,.3)':'var(--text-dim)'};cursor:${i===0?'default':'pointer'};font-size:14px;padding:0 4px;line-height:1;">↑</button>
+      <button onclick="moveSys(${i},1)" ${i===SYSTEMS.length-1?'disabled':''} title="Move down"
+        style="background:none;border:none;color:${i===SYSTEMS.length-1?'rgba(122,155,176,.3)':'var(--text-dim)'};cursor:${i===SYSTEMS.length-1?'default':'pointer'};font-size:14px;padding:0 4px;line-height:1;">↓</button>
       <button onclick="removeSys(${i})" style="background:none;border:none;color:var(--text-dim);
         cursor:pointer;font-size:16px;line-height:1;padding:0 2px;" title="Remove">&times;</button>
     </div>`).join('');
+}
+
+function moveSys(idx, delta) {
+  const target = idx + delta;
+  if (target < 0 || target >= SYSTEMS.length) return;
+  [SYSTEMS[idx], SYSTEMS[target]] = [SYSTEMS[target], SYSTEMS[idx]];
+  saveAll();
+  refreshSystemDropdowns();
+  renderSysTags();
+  refreshAll();
 }
 
 function addSystem() {
@@ -905,11 +944,42 @@ function lastSvc(sys,comp){
 }
 
 function intervalStatus(iv,sys){
-  const last=lastSvc(sys,iv.component), cur=CURRENT_HRS[sys];
-  if(!last||!cur) return null;
-  const since=cur-last.hours, pct=Math.min(since/iv.interval*100,100), rem=iv.interval-since;
-  const cls=since>=iv.interval?'due':pct>=75?'warn':'ok';
-  return {since,pct,rem,cls,last,cur,interval:iv.interval,sys,comp:iv.component};
+  const type = iv.type || 'hours';
+
+  if (type === 'days') {
+    const last = lastSvcAny(sys, iv.component);
+    if (!last) return null;
+    const lastDate = pDate(last.date);
+    const today    = new Date();
+    today.setHours(0,0,0,0);
+    const since = Math.floor((today - lastDate) / 86400000);
+    if (isNaN(since)) return null;
+    const pct = Math.min(since/iv.interval*100, 100);
+    const rem = iv.interval - since;
+    const cls = since>=iv.interval ? 'due' : pct>=75 ? 'warn' : 'ok';
+    return {since, pct, rem, cls, last, cur:null, interval:iv.interval, sys, comp:iv.component, type:'days'};
+  } else {
+    // hours — find most recent entry that has hours recorded
+    const last = RAW.filter(r =>
+      r.system === sys &&
+      r.component.toLowerCase() === iv.component.toLowerCase() &&
+      r.hours != null
+    ).sort((a,b)=>pDate(b.date)-pDate(a.date))[0] || null;
+    if (!last) return null;
+    const cur = CURRENT_HRS[sys];
+    if (!cur) return null;
+    const since = cur - last.hours;
+    const pct = Math.min(since/iv.interval*100, 100);
+    const rem = iv.interval - since;
+    const cls = since>=iv.interval ? 'due' : pct>=75 ? 'warn' : 'ok';
+    return {since, pct, rem, cls, last, cur, interval:iv.interval, sys, comp:iv.component, type:'hours'};
+  }
+}
+
+// Find last service entry — for date-based we don't require hours
+function lastSvcAny(sys, comp) {
+  return RAW.filter(r=>r.system===sys && r.component.toLowerCase()===comp.toLowerCase())
+            .sort((a,b)=>pDate(b.date)-pDate(a.date))[0]||null;
 }
 
 // ── UPDATE HOURS OVERLAY ──
@@ -939,7 +1009,33 @@ function showAddEntry() {
   document.getElementById('ae-form').reset();
   const today = new Date();
   document.getElementById('ae-date').value = `${today.getMonth()+1}/${today.getDate()}/${today.getFullYear()}`;
+  updateEntryHoursVisibility();
   document.getElementById('entry-overlay').style.display = 'flex';
+}
+
+function updateEntryHoursVisibility() {
+  const sys  = document.getElementById('ae-system').value;
+  const comp = document.getElementById('ae-component').value.trim();
+  const wrap = document.getElementById('ae-hours-wrap');
+  const info = document.getElementById('ae-hours-info');
+  if (!sys || !comp) {
+    // No component yet — show hours field
+    wrap.style.display = '';
+    info.style.display = 'none';
+    return;
+  }
+  // Find a matching interval: same component (case-insensitive), and system in sysMatch
+  const match = INTERVALS.find(iv =>
+    iv.component.toLowerCase() === comp.toLowerCase() &&
+    iv.sysMatch.includes(sys)
+  );
+  if (match && (match.type === 'days')) {
+    wrap.style.display = 'none';
+    info.style.display = 'flex';
+  } else {
+    wrap.style.display = '';
+    info.style.display = 'none';
+  }
 }
 
 function showEditEntry(idx) {
@@ -954,6 +1050,7 @@ function showEditEntry(idx) {
   document.getElementById('ae-component').value = r.component||'';
   document.getElementById('ae-part').value      = r.part||'';
   document.getElementById('ae-notes').value     = r.notes||'';
+  updateEntryHoursVisibility();
   document.getElementById('entry-overlay').style.display = 'flex';
 }
 
@@ -1007,13 +1104,28 @@ function compCategory(comp) {
 }
 
 function icardHTML(s) {
-  return `<div class="icard ${s.cls}">
+  const unit = s.type === 'days' ? 'days' : 'hrs';
+  const lastLabel = s.type === 'days'
+    ? `Last: ${s.last.date}`
+    : `Last @ ${s.last.hours ?? '—'} hrs · ${s.last.date}`;
+  const statusText = s.cls === 'due'
+    ? (s.type === 'days' ? `Overdue ${Math.abs(s.rem)} days` : 'OVERDUE')
+    : `${s.rem} ${unit} left`;
+  const notesHTML = (s.last && s.last.notes && s.last.notes.trim())
+    ? `<div style="font-size:11px;color:var(--text-dim);margin-top:6px;padding-top:6px;border-top:.5px solid var(--border);font-style:italic;line-height:1.4;">${s.last.notes}</div>`
+    : '';
+  const color = SYS_COLOR(s.sys);
+  return `<div class="icard ${s.cls}" style="border-left:3px solid ${color};">
     <div class="icard-top">
-      <div class="icard-name"><span class="sys-dot" style="background:${SYS_COLOR(s.sys)||'#888'}"></span>${s.sys} — ${s.comp}</div>
-      <div class="icard-status">${s.cls==='due'?'OVERDUE':s.rem+' hrs left'}</div>
+      <div class="icard-name" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <span class="sys-pill" style="background:${color}22;color:${color};border-color:${color}55;"><span class="sys-dot" style="background:${color};"></span>${s.sys}</span>
+        <span style="font-weight:500;">${s.comp}</span>
+      </div>
+      <div class="icard-status">${statusText}</div>
     </div>
     <div class="progress-track"><div class="progress-fill" style="width:${Math.round(s.pct)}%"></div></div>
-    <div class="icard-detail"><span>Last @ ${s.last.hours} hrs · ${s.last.date}</span><span>${Math.round(s.pct)}% / ${s.interval} hr</span></div>
+    <div class="icard-detail"><span>${lastLabel}</span><span>${Math.round(s.pct)}% / ${s.interval} ${unit}</span></div>
+    ${notesHTML}
   </div>`;
 }
 
@@ -1034,26 +1146,31 @@ function buildOvSectionHTML(sectionId, comps, compFilter) {
     // Systems that have a log entry for this component
     const logSystems = [...new Set(RAW.filter(r=>r.component.toLowerCase()===comp.toLowerCase()).map(r=>r.system))];
 
-    const ivMatch = INTERVALS.find(iv=>iv.component.toLowerCase()===comp.toLowerCase());
-    if (ivMatch) {
-      // Interval-tracked: show only systems in the interval's sysMatch that have data
-      ivMatch.sysMatch.forEach(sys=>{
-        const s = intervalStatus(ivMatch, sys);
-        if (s) {
-          cardsHTML.push(icardHTML(s));
-          statusDots.push(s.cls);
-        } else if (compFilter === 'All' && logSystems.includes(sys)) {
-          // Edge case: system has a log entry but intervalStatus returned null
-          // (e.g. missing hours field). Skip silently when filtering.
-          cardsHTML.push(`<div class="icard ok" style="opacity:.6;">
-            <div class="icard-top">
-              <div class="icard-name"><span class="sys-dot" style="background:${SYS_COLOR(sys)}"></span>${sys} — ${comp}</div>
-              <div class="icard-status" style="color:var(--text-dim);">No data</div>
-            </div>
-            <div class="icard-detail" style="margin-top:6px;"><span>Not yet logged</span><span>${ivMatch.interval} hr interval</span></div>
-          </div>`);
-          statusDots.push('ok');
-        }
+    const ivMatches = INTERVALS.filter(iv=>iv.component.toLowerCase()===comp.toLowerCase());
+    if (ivMatches.length > 0) {
+      // Iterate ALL intervals for this component (e.g. one for Engines, another for Generator)
+      // Track rendered systems to avoid duplicates when sysMatch overlaps
+      const renderedSysForComp = new Set();
+      ivMatches.forEach(ivMatch => {
+        ivMatch.sysMatch.forEach(sys=>{
+          if (renderedSysForComp.has(sys)) return;
+          const s = intervalStatus(ivMatch, sys);
+          if (s) {
+            cardsHTML.push(icardHTML(s));
+            statusDots.push(s.cls);
+            renderedSysForComp.add(sys);
+          } else if (compFilter === 'All' && logSystems.includes(sys)) {
+            cardsHTML.push(`<div class="icard ok" style="opacity:.6;">
+              <div class="icard-top">
+                <div class="icard-name"><span class="sys-dot" style="background:${SYS_COLOR(sys)}"></span>${sys} — ${comp}</div>
+                <div class="icard-status" style="color:var(--text-dim);">No data</div>
+              </div>
+              <div class="icard-detail" style="margin-top:6px;"><span>Not yet logged</span><span>${ivMatch.interval} ${ivMatch.type==='days'?'day':'hr'} interval</span></div>
+            </div>`);
+            statusDots.push('ok');
+            renderedSysForComp.add(sys);
+          }
+        });
       });
     } else {
       // No interval — show systems that HAVE a log entry for this component
@@ -1062,12 +1179,20 @@ function buildOvSectionHTML(sectionId, comps, compFilter) {
       logSystems.forEach(sys=>{
         const last = lastServiceRow(sys, comp);
         if (!last) return;
-        cardsHTML.push(`<div class="icard ok">
+        const notesHTML = (last.notes && last.notes.trim())
+          ? `<div style="font-size:11px;color:var(--text-dim);margin-top:6px;padding-top:6px;border-top:.5px solid var(--border);font-style:italic;line-height:1.4;">${last.notes}</div>`
+          : '';
+        const sysColor = SYS_COLOR(sys);
+        cardsHTML.push(`<div class="icard ok" style="border-left:3px solid ${sysColor};">
           <div class="icard-top">
-            <div class="icard-name"><span class="sys-dot" style="background:${SYS_COLOR(sys)}"></span>${sys} — ${comp}</div>
+            <div class="icard-name" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <span class="sys-pill" style="background:${sysColor}22;color:${sysColor};border-color:${sysColor}55;"><span class="sys-dot" style="background:${sysColor};"></span>${sys}</span>
+              <span style="font-weight:500;">${comp}</span>
+            </div>
             <div class="icard-status" style="color:var(--text-dim);">${last.action||'Serviced'}</div>
           </div>
           <div class="icard-detail" style="margin-top:4px;"><span>${last.date}</span><span class="mono">${last.hours?last.hours+' hrs':'—'}</span></div>
+          ${notesHTML}
         </div>`);
         statusDots.push('ok');
       });
@@ -1194,9 +1319,6 @@ function buildOverview() {
   if (CONFIG.sectionOrder) sectionOrder = CONFIG.sectionOrder;
 
   // Engine hours display
-  document.getElementById('ov-port-hrs').textContent = CURRENT_HRS['Port Engine'] ? Number(CURRENT_HRS['Port Engine']).toLocaleString() : '—';
-  document.getElementById('ov-stbd-hrs').textContent = CURRENT_HRS['Stb Engine']  ? Number(CURRENT_HRS['Stb Engine']).toLocaleString()  : '—';
-  document.getElementById('ov-gen-hrs').textContent  = CURRENT_HRS['Generator']   ? Number(CURRENT_HRS['Generator']).toLocaleString()   : '—';
 
   // Categorize components
   const allComps = [...new Set(RAW.map(r=>r.component))];
@@ -1236,7 +1358,7 @@ function renderLog() {
     const idx=RAW.indexOf(r);
     return `<tr>
       <td class="mono">${r.date}</td>
-      <td><span class="sys-dot" style="background:${SYS_COLOR(r.system)||'#888'}"></span>${r.system}</td>
+      <td><span class="sys-pill" style="background:${SYS_COLOR(r.system)}22;color:${SYS_COLOR(r.system)};border-color:${SYS_COLOR(r.system)}55;"><span class="sys-dot" style="background:${SYS_COLOR(r.system)};"></span>${r.system}</span></td>
       <td>${r.component}</td>
       <td class="mono">${r.hours??'—'}</td>
       <td style="color:var(--text-dim);font-size:11px;">${r.part||'—'}</td>
@@ -1260,7 +1382,25 @@ function showAddInterval() {
   document.getElementById('iv-system').value='Engine';
   document.getElementById('iv-component').value='';
   document.getElementById('iv-interval').value='';
+  document.getElementById('iv-type').value='hours';
+  updateIvLabel();
   document.getElementById('iv-overlay').style.display='flex';
+}
+
+function updateIvLabel() {
+  const t = document.getElementById('iv-type').value;
+  const label = document.getElementById('iv-interval-label');
+  const hint  = document.getElementById('iv-interval-hint');
+  const input = document.getElementById('iv-interval');
+  if (t === 'days') {
+    label.textContent = 'Interval (days) *';
+    input.placeholder = 'e.g. 365 for annual, 730 for 2 years';
+    hint.textContent = 'Calendar-based: triggers when this many days have passed since the last log entry for that system and component.';
+  } else {
+    label.textContent = 'Interval (engine hours) *';
+    input.placeholder = 'e.g. 200';
+    hint.textContent = 'Engine hours since last matching log entry for that system and component.';
+  }
 }
 
 function showEditInterval(idx) {
@@ -1271,6 +1411,8 @@ function showEditInterval(idx) {
   document.getElementById('iv-system').value=iv.system;
   document.getElementById('iv-component').value=iv.component;
   document.getElementById('iv-interval').value=iv.interval;
+  document.getElementById('iv-type').value=iv.type||'hours';
+  updateIvLabel();
   document.getElementById('iv-overlay').style.display='flex';
 }
 
@@ -1282,13 +1424,17 @@ function submitInterval() {
   const system    = document.getElementById('iv-system').value;
   const component = document.getElementById('iv-component').value.trim();
   const interval  = document.getElementById('iv-interval').value.trim();
+  const type      = document.getElementById('iv-type').value;
   if (!system||!component||!interval){ alert('All fields required.'); return; }
-  const engineSys=[...new Set(RAW.map(r=>r.system).filter(s=>s.includes('Engine')))];
+  const engineSys = SYSTEMS.length
+    ? SYSTEMS.filter(s=>s.name.toLowerCase().includes('engine')).map(s=>s.name)
+    : [...new Set(RAW.map(r=>r.system).filter(s=>s.includes('Engine')))];
   const entry={
     system,
     sysMatch: system==='Engine' ? engineSys : [system],
     component,
     interval: Number(interval),
+    type,
   };
   if (editIvIdx!==null) INTERVALS[editIvIdx]=entry;
   else INTERVALS.push(entry);
@@ -1308,7 +1454,8 @@ function buildIntervals() {
     rowsEl.innerHTML=`<div style="color:var(--text-dim);font-size:12px;padding:8px 2px;">No intervals configured. Tap + Add Interval to create one.</div>`;
   } else {
     rowsEl.innerHTML=INTERVALS.map((iv,idx)=>{
-      // Collect statuses for this interval across its systems
+      const type = iv.type || 'hours';
+      const unit = type === 'days' ? 'days' : 'hrs';
       const statuses=iv.sysMatch.map(sys=>intervalStatus(iv,sys)).filter(Boolean);
       const worstCls = statuses.some(s=>s.cls==='due')?'due':statuses.some(s=>s.cls==='warn')?'warn':'ok';
       const avgPct   = statuses.length ? Math.round(statuses.reduce((a,s)=>a+s.pct,0)/statuses.length) : 0;
@@ -1316,19 +1463,28 @@ function buildIntervals() {
       const clr      = clrMap[worstCls];
 
       const sysLabel = iv.system==='Engine'?'Port + Stbd Engines':iv.system;
+      const typeBadge = type === 'days'
+        ? `<span style="font-size:9px;padding:1px 7px;background:rgba(127,119,221,.15);color:#a09be8;border-radius:8px;margin-left:6px;letter-spacing:.5px;text-transform:uppercase;font-weight:500;">Date</span>`
+        : `<span style="font-size:9px;padding:1px 7px;background:rgba(200,146,42,.15);color:var(--brass-light);border-radius:8px;margin-left:6px;letter-spacing:.5px;text-transform:uppercase;font-weight:500;">Hours</span>`;
       const statusText = statuses.length===0 ? 'No log data'
         : worstCls==='due' ? 'Overdue'
-        : statuses.map(s=>s.rem+' hrs left ('+s.sys.replace(' Engine','')+')')
+        : statuses.map(s=>s.rem+' '+unit+' left ('+s.sys.replace(' Engine','')+')')
                   .join(' · ');
+
+      const lastDetail = statuses.length
+        ? type === 'days'
+          ? `<span>Last: ${statuses[0].last.date}</span>`
+          : `<span>Last: ${statuses[0].last.date} @ ${statuses[0].last.hours ?? '—'} hrs</span>`
+        : '';
 
       return `<div style="background:var(--card-bg);border:.5px solid var(--card-border);border-radius:var(--radius-sm);padding:14px 16px;position:relative;overflow:hidden;">
         <div style="position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:3px 0 0 3px;background:${clr};"></div>
         <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
           <div>
-            <div style="font-size:13px;font-weight:500;">${iv.component}
+            <div style="font-size:13px;font-weight:500;">${iv.component}${typeBadge}
               <span style="font-size:10px;color:var(--text-dim);font-weight:400;margin-left:6px;">${sysLabel}</span>
             </div>
-            <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">Every ${iv.interval} hrs &nbsp;·&nbsp; <span style="color:${clr};">${statusText}</span></div>
+            <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">Every ${iv.interval} ${unit} &nbsp;·&nbsp; <span style="color:${clr};">${statusText}</span></div>
           </div>
           <div style="display:flex;gap:4px;flex-shrink:0;margin-left:10px;">
             <button class="icon-btn" onclick="showEditInterval(${idx})" title="Edit" style="font-size:13px;">✎</button>
@@ -1339,28 +1495,42 @@ function buildIntervals() {
           <div style="height:4px;border-radius:2px;background:${clr};width:${Math.min(avgPct,100)}%;transition:width .5s;"></div>
         </div>
         ${statuses.length ? `<div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-dim);margin-top:5px;">
-          <span>Last: ${statuses[0].last.date} @ ${statuses[0].last.hours} hrs</span>
+          ${lastDetail}
           <span>${avgPct}% of interval</span>
         </div>` : ''}
       </div>`;
     }).join('');
   }
 
-  // ── Chart ──
+  // ── Chart — normalized to % progress so hours and days can share scale ──
   const statuses=[];
   INTERVALS.forEach(iv=>iv.sysMatch.forEach(sys=>{ const s=intervalStatus(iv,sys); if(s) statuses.push(s); }));
-  const labels=statuses.map(s=>s.sys.replace(' Engine','').replace('Generator','Gen')+' '+s.comp);
+  const labels=statuses.map(s=>{
+    const unit = s.type==='days' ? 'd' : 'h';
+    return s.sys.replace(' Engine','').replace('Generator','Gen')+' '+s.comp+' ('+unit+')';
+  });
   if (intChartInst) intChartInst.destroy();
   if (!statuses.length) return;
   intChartInst=new Chart(document.getElementById('intChart'),{
     type:'bar',
     data:{labels,datasets:[
-      {label:'Since service',data:statuses.map(s=>s.since),backgroundColor:statuses.map(s=>s.cls==='due'?'#e05c4a':s.cls==='warn'?'#d4912a':'#3aaa7a'),borderRadius:4},
-      {label:'Interval',data:statuses.map(s=>s.interval),backgroundColor:'rgba(255,255,255,.07)',borderRadius:4}
+      {label:'% of interval used',
+       data:statuses.map(s=>Math.round(s.pct)),
+       backgroundColor:statuses.map(s=>s.cls==='due'?'#e05c4a':s.cls==='warn'?'#d4912a':'#3aaa7a'),
+       borderRadius:4}
     ]},
     options:{responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{position:'bottom',labels:{color:'#7a9bb0',font:{size:10},boxWidth:8,boxHeight:8}}},
-      scales:{y:{beginAtZero:true,ticks:{color:'#7a9bb0',font:{size:10}},grid:{color:'rgba(100,160,200,.07)'}},
+      plugins:{
+        legend:{position:'bottom',labels:{color:'#7a9bb0',font:{size:10},boxWidth:8,boxHeight:8}},
+        tooltip:{callbacks:{label:ctx=>{
+          const s = statuses[ctx.dataIndex];
+          const unit = s.type==='days'?'days':'hrs';
+          return s.cls==='due'
+            ? `Overdue: ${Math.abs(s.rem)} ${unit} past interval`
+            : `${s.since} of ${s.interval} ${unit} (${Math.round(s.pct)}%)`;
+        }}}
+      },
+      scales:{y:{beginAtZero:true,max:120,ticks:{color:'#7a9bb0',font:{size:10},callback:v=>v+'%'},grid:{color:'rgba(100,160,200,.07)'}},
               x:{ticks:{color:'#7a9bb0',font:{size:10}},grid:{display:false}}}}
   });
 }
@@ -1383,6 +1553,7 @@ loadAll();
 applyConfig();
 refreshSystemDropdowns();
 refreshCompDatalist();
+recalcHrs();
 refreshAll();
 updateClock();
 setInterval(updateClock, 1000);

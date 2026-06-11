@@ -145,7 +145,7 @@
     <div class="hero-eyebrow">Sunset Serenade · OA 423</div>
     <h1 class="hero-title">My<span>Dashboard</span></h1>
     <div class="hero-sub">Vessel Maintenance — iPad App User Guide</div>
-    <div class="hero-ver">Version 1.1.0 · Data Schema v1 · by Captain David</div>
+    <div class="hero-ver">Version 2.0.0 · Data Schema v2 · by Captain David</div>
     <div class="chips">
       <span class="chip chip-local">Runs Locally</span>
       <span class="chip chip-port">Port Engine</span>
@@ -257,6 +257,7 @@
       <div>Open the new file in Safari → Add to Home Screen</div>
       <div>Your data loads automatically from localStorage — nothing is overwritten</div>
       <div>Confirm version in Settings footer</div>
+      <div>v1 to v2 migration: existing intervals stamped as "hours" type automatically</div>
     </div>
     <p>If the new version includes a data schema change, migrations run automatically before any data is touched. The version footer in Settings shows <code>VERSION x.x.x · DATA vx</code>.</p>
     <div class="callout red"><span class="callout-icon">⚠️</span><div class="callout-body"><strong>If something goes wrong:</strong> use Import Backup in Settings to restore from the <code>.json</code> file exported in step 1.</div></div>
@@ -311,7 +312,7 @@
         </div>
         <p><strong>Section reordering</strong> — tap <strong>⠿ Reorder</strong> to enter reorder mode. Drag handles appear; drag sections to reposition. Tap <strong>✓ Done</strong> to exit. Order persists.</p>
         <p><strong>Component filter (Components section only)</strong> — pill row inside the Components section filters by a specific component. Oil and Fluids &amp; Filters are unaffected.</p>
-        <p><strong>Status color coding</strong> — 🟢 Green: within interval &nbsp;·&nbsp; 🟡 Amber: within 25% (due soon) &nbsp;·&nbsp; 🔴 Red: overdue. Components without a configured interval show last service date and action only.</p>
+        <p><strong>Status color coding</strong> — 🟢 Green: within interval &nbsp;·&nbsp; 🟡 Amber: within 25% (due soon) &nbsp;·&nbsp; 🔴 Red: overdue. Both engine-hour and calendar-day intervals use the same color logic. Components without a configured interval show last service date and action only.</p>
       </div>
     </div>
   </section>
@@ -334,7 +335,7 @@
             <thead><tr><th>Field</th><th>Required</th><th>Notes</th></tr></thead>
             <tbody>
               <tr><td>Date</td><td><span class="req">✅</span></td><td>Format: M/D/YYYY — defaults to today</td></tr>
-              <tr><td>Engine Hours</td><td><span class="opt">—</span></td><td>Hours at time of service</td></tr>
+              <tr><td>Engine Hours</td><td><span class="opt">—</span></td><td>Hours at time of service. <strong>Auto-hidden</strong> when the component+system combination has a date-based interval configured.</td></tr>
               <tr><td>System</td><td><span class="req">✅</span></td><td>Port Engine, Stbd Engine, Generator, or Engines</td></tr>
               <tr><td>Action</td><td><span class="opt">—</span></td><td>Replaced, Checked, Repaired, Inspected</td></tr>
               <tr><td>Component</td><td><span class="req">✅</span></td><td>Dropdown from configured list — or type a new value</td></tr>
@@ -343,6 +344,7 @@
             </tbody>
           </table>
         </div>
+        <div class="callout blue"><span class="callout-icon">💡</span><div class="callout-body"><strong>Smart hours field:</strong> When you select a component+system that has a date-based interval configured (like a battery), the Engine Hours field auto-hides and shows a "Date-tracked" indicator. For hours-based components, the field appears as normal. Change either field to re-evaluate.</div></div>
         <div class="callout gold"><span class="callout-icon">💡</span><div class="callout-body"><strong>Component field</strong> is a dropdown — pick from your configured list or type a new value. New values entered here are not automatically added to the list; manage the list in Settings → Components.</div></div>
         <p><strong>✎ Edit</strong> — tap the pencil icon on any row to open that entry prefilled. All fields are editable.</p>
         <p><strong>✕ Delete</strong> — tap the X icon on any row. Confirmation required.</p>
@@ -367,12 +369,14 @@
           <table>
             <thead><tr><th>Field</th><th>Required</th><th>Notes</th></tr></thead>
             <tbody>
-              <tr><td>System</td><td><span class="req">✅</span></td><td>Engine (Port + Stbd), Port only, Stbd only, Generator, or Engines</td></tr>
+              <tr><td>System</td><td><span class="req">✅</span></td><td>Engine (all engine systems), individual system, or any configured system</td></tr>
               <tr><td>Component</td><td><span class="req">✅</span></td><td>Dropdown from configured list — must match log entry names</td></tr>
-              <tr><td>Interval (hours)</td><td><span class="req">✅</span></td><td>Engine hours between services</td></tr>
+              <tr><td>Interval Type</td><td><span class="req">✅</span></td><td><strong>Hours</strong> — engine hours between services (e.g. oil, filters) &nbsp;·&nbsp; <strong>Days</strong> — calendar days (e.g. batteries, fire extinguishers, liferaft)</td></tr>
+              <tr><td>Interval (value)</td><td><span class="req">✅</span></td><td>Number of hours or days between services</td></tr>
             </tbody>
           </table>
         </div>
+        <div class="callout blue"><span class="callout-icon">💡</span><div class="callout-body"><strong>Date-based intervals</strong> are useful for items that should be serviced on a calendar basis regardless of engine use: batteries (every 2 years), fire extinguishers (annual), liferaft repack (annual), bilge pump inspection (quarterly), etc. Status calculates from the date of the last log entry — engine hours field is optional for these.</div></div>
         <div class="callout gold"><span class="callout-icon">⚠️</span><div class="callout-body"><strong>Component name matching:</strong> Names are case-insensitive but must otherwise match log entries. "Fuel Filter" matches "fuel filter" but not "Fuel Filters" (plural).</div></div>
         <p><strong>✎ Edit</strong> — opens the interval prefilled. Change system, component, or interval value.</p>
         <p><strong>✕ Delete</strong> — removes the tracking rule only. Log entries are unaffected.</p>
@@ -506,7 +510,7 @@
   </section>
 
   <footer>
-    <span>Sunset Serenade · OA 423 · MyDashboard v1.1.0</span>
+    <span>Sunset Serenade · OA 423 · MyDashboard v2.0.0</span>
     <span>Built with Claude · Anthropic</span>
   </footer>
 
