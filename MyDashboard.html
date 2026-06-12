@@ -216,7 +216,7 @@
 
   <header>
     <div class="vessel-title">
-      <img src="SS_app.jpg" class="boat-thumb" alt="Sunset Serenade">
+      <img src="SS_app.jpg" class="boat-thumb" id="boat-thumb-img" alt="Sunset Serenade">
       <div>
         <div class="vessel-name" id="vessel-name-el">Sunset Serenade</div>
         <div class="vessel-sub"><span id="vessel-id-el">OA 423</span> · Maintenance</div>
@@ -441,6 +441,17 @@
             <button class="theme-btn" id="theme-light-btn" onclick="setTheme('light')">☀️ Light</button>
           </div>
         </div>
+        <!-- Boat Photo -->
+        <div style="border-top:.5px solid var(--card-border);padding-top:14px;">
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text-dim);margin-bottom:10px;">Boat Photo</div>
+          <div style="display:flex;align-items:center;gap:14px;">
+            <img id="cfg-boat-thumb" src="SS_app.jpg" style="width:56px;height:56px;border-radius:50%;object-fit:cover;border:1.5px solid var(--brass);flex-shrink:0;">
+            <label style="flex:1;display:block;">
+              <span class="btn-ghost" style="display:block;text-align:center;font-size:12px;padding:9px;cursor:pointer;">📷 Change Photo</span>
+              <input type="file" accept="image/*" style="display:none;" onchange="uploadBoatPhoto(this.files[0])">
+            </label>
+          </div>
+        </div>
         <!-- Component List -->
         <div style="border-top:.5px solid var(--card-border);padding-top:14px;">
           <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text-dim);margin-bottom:10px;">Components</div>
@@ -498,6 +509,7 @@ const LS_INTERVALS  = 'ss_intervals';
 const LS_HRS        = 'ss_manual_hrs';
 const LS_CONFIG     = 'ss_config';
 const LS_DATA_VER   = 'ss_data_version';
+const LS_BOAT_PHOTO = 'ss_boat_photo';
 const LS_COMPONENTS = 'ss_components';
 const LS_SYSTEMS    = 'ss_systems';
 
@@ -895,6 +907,24 @@ function removeComponent(idx) {
   renderCompTags();
 }
 
+function applyBoatPhoto(src) {
+  const img = document.getElementById('boat-thumb-img');
+  if (img) img.src = src || 'SS_app.jpg';
+}
+
+function uploadBoatPhoto(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const dataUrl = e.target.result;
+    localStorage.setItem(LS_BOAT_PHOTO, dataUrl);
+    applyBoatPhoto(dataUrl);
+    const cfg = document.getElementById('cfg-boat-thumb');
+    if (cfg) cfg.src = dataUrl;
+  };
+  reader.readAsDataURL(file);
+}
+
 function applyConfig() {
   document.getElementById('vessel-name-el').textContent = CONFIG.boatName || 'Sunset Serenade';
   document.getElementById('vessel-id-el').textContent   = CONFIG.vesselId  || 'OA 423';
@@ -912,6 +942,9 @@ function showConfig() {
   setTheme(CONFIG.theme || 'dark');
   renderCompTags();
   renderSysTags();
+  const stored = localStorage.getItem(LS_BOAT_PHOTO);
+  const cfg = document.getElementById('cfg-boat-thumb');
+  if (cfg) cfg.src = stored || 'SS_app.jpg';
   document.getElementById('config-overlay').style.display = 'flex';
 }
 
@@ -1564,6 +1597,7 @@ function refreshAll() { buildOverview(); buildLogFilters(); renderLog(); buildIn
 // ── INIT ──
 loadAll();
 applyConfig();
+applyBoatPhoto(localStorage.getItem(LS_BOAT_PHOTO) || 'SS_app.jpg');
 refreshSystemDropdowns();
 refreshCompDatalist();
 recalcHrs();
