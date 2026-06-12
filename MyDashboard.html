@@ -1026,6 +1026,16 @@ function showUpdateHours() {
 }
 function hideUpdateHours() { document.getElementById('hrs-overlay').style.display = 'none'; }
 function submitUpdateHours() {
+  const decrements = [];
+  SYSTEMS.forEach(s=>{
+    const el = document.getElementById('uh-'+s.name.replace(/\s+/g,'-'));
+    if (el && el.value.trim()) {
+      const newVal = Number(el.value.trim());
+      const curVal = CURRENT_HRS[s.name];
+      if (curVal && newVal < curVal) decrements.push(`${s.name}: ${curVal.toLocaleString()} → ${newVal.toLocaleString()} hrs`);
+    }
+  });
+  if (decrements.length && !confirm(`Engine hours would decrease:\n\n${decrements.join('\n')}\n\nConfirm?`)) return;
   SYSTEMS.forEach(s=>{
     const el = document.getElementById('uh-'+s.name.replace(/\s+/g,'-'));
     if (el && el.value.trim()) MANUAL_HRS[s.name] = Number(el.value.trim());
