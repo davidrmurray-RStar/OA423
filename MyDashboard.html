@@ -1491,7 +1491,11 @@ function submitInterval() {
 }
 
 function deleteInterval(idx) {
-  if (!confirm('Delete this interval?')) return;
+  const iv = INTERVALS[idx];
+  const sysLabel = iv.system === 'Engine' ? 'Port + Stbd Engines' : iv.system;
+  const unit = (iv.type || 'hours') === 'days' ? 'days' : 'hrs';
+  const label = `${sysLabel}  ·  ${iv.component}  ·  every ${iv.interval} ${unit}`;
+  if (!confirm(`Delete this interval?\n\n${label}`)) return;
   INTERVALS.splice(idx,1);
   saveAll(); refreshAll();
 }
