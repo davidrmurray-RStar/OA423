@@ -1254,9 +1254,11 @@ function buildOvSectionHTML(sectionId, comps, compFilter) {
   if (warn) summary += ` · ${warn} due soon`;
   if (!due&&!warn&&ok&&compFilter==='All') summary += ' · all current';
 
-  const badges = [...statusDots.filter(d=>d==='due').map(()=>`<span class="status-dot" style="background:var(--danger);"></span>`),
-                  ...statusDots.filter(d=>d==='warn').map(()=>`<span class="status-dot" style="background:var(--warn);"></span>`),
-                  ...statusDots.filter(d=>d==='ok').map(()=>`<span class="status-dot" style="background:var(--good);"></span>`)].join('');
+  const badges = [
+    due  ? `<span style="font-family:'DM Mono',monospace;font-size:11px;font-weight:500;color:var(--danger);background:rgba(224,92,74,.12);border-radius:8px;padding:2px 7px;">${due}</span>`  : '',
+    warn ? `<span style="font-family:'DM Mono',monospace;font-size:11px;font-weight:500;color:var(--warn);background:rgba(212,145,42,.12);border-radius:8px;padding:2px 7px;">${warn}</span>` : '',
+    ok   ? `<span style="font-family:'DM Mono',monospace;font-size:11px;font-weight:500;color:var(--good);background:rgba(58,170,122,.12);border-radius:8px;padding:2px 7px;">${ok}</span>`   : '',
+  ].join('');
 
   const def = SECTION_DEFS[sectionId];
   return `<div class="coll-section open" id="cs-${sectionId}"
