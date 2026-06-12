@@ -58,7 +58,8 @@
 
   /* HEADER */
   header{display:flex;align-items:center;justify-content:space-between;padding:14px 20px 10px;border-bottom:.5px solid var(--border);flex-shrink:0;gap:12px;position:relative;z-index:10;}
-  .vessel-title{display:flex;align-items:baseline;gap:8px;min-width:0;}
+  .vessel-title{display:flex;align-items:center;gap:10px;min-width:0;}
+  .boat-thumb{width:42px;height:42px;border-radius:50%;object-fit:cover;border:1.5px solid var(--brass);flex-shrink:0;}
   .vessel-name{font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:2px;color:var(--brass-light);line-height:1;white-space:nowrap;}
   .vessel-sub{font-size:10px;color:var(--text-dim);letter-spacing:1.5px;text-transform:uppercase;white-space:nowrap;}
   .header-center{display:flex;gap:14px;align-items:flex-end;}
@@ -215,8 +216,11 @@
 
   <header>
     <div class="vessel-title">
-      <div class="vessel-name" id="vessel-name-el">Sunset Serenade</div>
-      <div class="vessel-sub"><span id="vessel-id-el">OA 423</span> · Maintenance</div>
+      <img src="SS_app.jpg" class="boat-thumb" alt="Sunset Serenade">
+      <div>
+        <div class="vessel-name" id="vessel-name-el">Sunset Serenade</div>
+        <div class="vessel-sub"><span id="vessel-id-el">OA 423</span> · Maintenance</div>
+      </div>
     </div>
     <div class="header-center" id="header-chips" style="display:flex;gap:14px;align-items:flex-end;"></div>
     <div class="header-right">
