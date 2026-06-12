@@ -1123,7 +1123,9 @@ function submitEntry() {
 }
 
 function deleteEntry(idx) {
-  if (!confirm('Delete this entry?')) return;
+  const r = RAW[idx];
+  const label = `${r.date}  ·  ${r.system}  ·  ${r.component}${r.hours ? '  ·  ' + r.hours.toLocaleString() + ' hrs' : ''}`;
+  if (!confirm(`Delete this log entry?\n\n${label}`)) return;
   RAW.splice(idx,1);
   saveAll(); recalcHrs(); refreshAll();
 }
