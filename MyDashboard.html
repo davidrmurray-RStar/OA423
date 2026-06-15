@@ -793,7 +793,7 @@ function refreshSystemDropdowns() {
   // Header chips — only show systems that have engine hours tracked
   const hc = document.getElementById('header-chips');
   if (hc) {
-    const chipSystems = SYSTEMS.filter(s => CURRENT_HRS[s.name] != null && s.name.toLowerCase() !== 'engines');
+    const chipSystems = SYSTEMS.filter(s => CURRENT_HRS[s.name] != null && (/ Engine$/i.test(s.name) || /^Generator$/i.test(s.name)));
     hc.innerHTML = chipSystems.map(s=>`
       <div class="hr-chip" style="text-align:right;">
         <div style="display:flex;align-items:center;gap:6px;justify-content:flex-end;margin-bottom:4px;">
