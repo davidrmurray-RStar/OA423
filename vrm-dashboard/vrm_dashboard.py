@@ -132,12 +132,18 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, b"ok", "text/plain")
 
         if path in ("/", "/index.html"):
-            html = (HERE / "dashboard.html").read_bytes()
+            html = (HERE.parent / "MyDashboard.html").read_bytes()
             return self._send(200, html, "text/html; charset=utf-8")
 
         if path == "/config.js":
             cfg = f'window.VRM_CONFIG = {{ site: "{SITE}" }};'
             return self._send(200, cfg.encode(), "application/javascript")
+
+        if path == "/SS_app.jpg":
+            img = HERE.parent / "SS_app.jpg"
+            if img.exists():
+                return self._send(200, img.read_bytes(), "image/jpeg")
+            return self._send(404, b"not found", "text/plain")
 
         if path.startswith("/api/"):
             name = path[len("/api/"):]

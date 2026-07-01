@@ -145,6 +145,19 @@
   .hrs-card .h-value{font-family:'DM Mono',monospace;font-size:32px;font-weight:500;line-height:1;}
   .hrs-card .h-suffix{font-family:'DM Sans',sans-serif;font-size:11px;color:var(--text-dim);margin-left:6px;text-transform:uppercase;letter-spacing:1px;vertical-align:middle;}
 
+  /* VRM LIVE KPI TILES */
+  .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:16px;}
+  .kpi{background:var(--card-bg);border:.5px solid var(--card-border);border-radius:var(--radius-sm);padding:14px 16px;border-left:3px solid #36c2a4;}
+  .kpi.amber{border-left-color:#f2b338;}
+  .kpi.missing{border-left-color:var(--text-dim);opacity:.7;}
+  .kpi .k-label{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text-dim);margin-bottom:8px;font-weight:500;}
+  .kpi .k-val{font-family:'DM Mono',monospace;font-size:22px;font-weight:500;line-height:1.1;color:var(--text);}
+  .kpi .k-val.big{font-size:30px;}
+  .kpi .k-val.none{color:var(--text-dim);font-weight:400;}
+  .kpi .k-sub{font-size:10px;color:var(--text-dim);margin-top:8px;line-height:1.4;}
+  .vrm-offline{background:var(--card-bg);border:.5px solid var(--card-border);border-radius:var(--radius);padding:32px 24px;text-align:center;color:var(--text-dim);font-size:13px;line-height:1.6;}
+  .vrm-offline code{font-family:'DM Mono',monospace;font-size:11px;background:rgba(255,255,255,.06);padding:2px 8px;border-radius:6px;}
+
   /* CHART */
   .chart-card{background:var(--card-bg);border:.5px solid var(--card-border);border-radius:var(--radius);padding:16px;margin-bottom:16px;}
   .chart-title{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-dim);margin-bottom:14px;}
@@ -238,6 +251,7 @@
     <button class="tab active" onclick="switchTab('overview')">Overview</button>
     <button class="tab" onclick="switchTab('log')">Log</button>
     <button class="tab" onclick="switchTab('intervals')">Intervals</button>
+    <button class="tab" onclick="switchTab('live')">Live</button>
   </div>
 
   <div class="scroll-area">
@@ -301,6 +315,17 @@
           <canvas id="intChart"></canvas>
         </div>
       </div>
+    </div>
+
+    <!-- LIVE / VRM -->
+    <div class="view" id="view-live">
+      <div style="height:16px;"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-dim);">Victron Live</div>
+        <span id="vrm-updated" style="font-size:10px;color:var(--text-dim);font-family:'DM Mono',monospace;"></span>
+      </div>
+      <div id="vrm-status-wrap"></div>
+      <div class="kpi-grid" id="vrm-featured"></div>
     </div>
 
   </div><!-- scroll-area -->
@@ -1602,7 +1627,7 @@ function buildIntervals() {
 // ── TABS ──
 function switchTab(name) {
   document.querySelectorAll('.tab').forEach((t,i)=>{
-    t.classList.toggle('active',['overview','log','intervals'][i]===name);
+    t.classList.toggle('active',['overview','log','intervals','live'][i]===name);
   });
   document.querySelectorAll('.view').forEach(v=>{
     v.classList.toggle('active',v.id==='view-'+name);
@@ -1611,6 +1636,161 @@ function switchTab(name) {
 
 // ── REFRESH ──
 function refreshAll() { buildOverview(); buildLogFilters(); renderLog(); buildIntervals(); }
+
+// ── VRM LIVE ──
+const VRM_REFRESH_MS = 10000;
+const VRM_WEATHER = {
+  lat: 27.7152, lon: -82.6777,
+  tempUnit: 'fahrenheit', windUnit: 'mph',
+  refreshMs: 10 * 60 * 1000,
+};
+const VRM_FEATURED = [
+  { label:'Grid',            amber:false, items:[{desc:'Input voltage phase 1',device:'VE.Bus'},{desc:'Input current phase 1',device:'VE.Bus'}] },
+  { label:'Inverter status', amber:false, items:[{desc:'VE.Bus state',device:'VE.Bus'}] },
+  { label:'AC Load',         amber:false, items:[{desc:'Output voltage phase 1',device:'VE.Bus'},{desc:'Output current phase 1',device:'VE.Bus'}] },
+  { label:'Battery SOC',     amber:false, items:[{desc:'State of charge',device:'Battery Monitor'}] },
+  { label:'Battery voltage', amber:false, items:[{desc:'Voltage',device:'Battery Monitor'}] },
+  { label:'Battery current', amber:false, items:[{desc:'Current',device:'Battery Monitor'}] },
+  { label:'Time to go',      amber:false, items:[{desc:'Time to go',device:'Battery Monitor'}] },
+  { label:'Fridge',          amber:true,  items:[{desc:'Temperature',customName:'Fridge',toF:true},{desc:'Humidity',customName:'Fridge'}] },
+  { label:'VicRoom',         amber:true,  items:[{desc:'Temperature',customName:'VicRoom',toF:true},{desc:'Humidity',customName:'VicRoom'}] },
+  { label:'Kitchen',         amber:true,  items:[{desc:'Temperature',customName:'Kitchen',toF:true},{desc:'Humidity',customName:'Kitchen'}] },
+  { label:'Engine Room',     amber:true,  items:[{desc:'Temperature',customName:'Engine Room',toF:true},{desc:'Humidity',customName:'Engine Room'}] },
+  { label:'Weather',         amber:true,  weather:true },
+];
+
+let vrmRecords = [], vrmWeather = null, vrmOnline = false, vrmHeartbeatInterval = null;
+
+const vrmFmt   = r => (r.formattedValue != null && r.formattedValue !== '') ? r.formattedValue : (r.rawValue != null ? String(r.rawValue) : '–');
+const vrmDev   = r => r.Device || r.device || r.dbusServiceType || 'Other';
+const vrmLC    = s => String(s == null ? '' : s).toLowerCase();
+const vrmList  = d => d == null ? [] : (Array.isArray(d) ? d : [d]);
+const vrmIKey  = r => vrmLC(r.Device) + '#' + (r.instance !== undefined ? r.instance : r.idDeviceType);
+function vrmToNum(r) {
+  if (r.rawValue != null && r.rawValue !== '' && !isNaN(Number(r.rawValue))) return Number(r.rawValue);
+  const m = String(r.formattedValue || '').match(/-?\d+(\.\d+)?/);
+  return m ? Number(m[0]) : NaN;
+}
+function vrmDisplayVal(r, it) {
+  if (it && it.toF) { const c = vrmToNum(r); if (isFinite(c)) return Math.round(c * 9/5 + 32) + '°F'; }
+  return vrmFmt(r);
+}
+function vrmCustomNames(records) {
+  const map = {};
+  for (const r of records) {
+    if (vrmLC(r.description).includes('custom name')) {
+      const n = (r.formattedValue != null && r.formattedValue !== '') ? r.formattedValue : r.rawValue;
+      if (n != null && String(n).trim() !== '') map[vrmIKey(r)] = String(n);
+    }
+  }
+  return map;
+}
+const vrmCustOf = (r, names) => names[vrmIKey(r)] || '';
+function vrmHaystack(r, names) {
+  return [r.Device, r.description, vrmCustOf(r, names), r.code, r.dataAttributeName, r.dbusServiceType]
+    .filter(Boolean).join(' ').toLowerCase();
+}
+function vrmFind(records, m, names) {
+  return records.find(r => {
+    if (m.desc && vrmLC(r.description) !== vrmLC(m.desc)) return false;
+    if (m.device) { const ds = vrmList(m.device).map(vrmLC); if (!ds.some(d => vrmLC(r.Device).includes(d))) return false; }
+    if (m.customName && !vrmLC(vrmCustOf(r, names)).includes(vrmLC(m.customName))) return false;
+    if (m.all && !m.all.every(t => vrmHaystack(r, names).includes(vrmLC(t)))) return false;
+    if (m.match && !vrmHaystack(r, names).includes(vrmLC(m.match))) return false;
+    return true;
+  });
+}
+const WMO = {0:'Clear',1:'Mainly clear',2:'Partly cloudy',3:'Overcast',45:'Fog',48:'Rime fog',
+  51:'Light drizzle',53:'Drizzle',55:'Heavy drizzle',61:'Light rain',63:'Rain',65:'Heavy rain',
+  71:'Light snow',73:'Snow',75:'Heavy snow',80:'Rain showers',82:'Violent showers',95:'Thunderstorm'};
+
+function vrmSiteLL(records) {
+  const num = r => { if (!r) return NaN; return parseFloat(String(r.rawValue != null ? r.rawValue : r.formattedValue)); };
+  const la = records.find(r => vrmLC(r.Device).includes('gateway') && vrmLC(r.description) === 'latitude');
+  const lo = records.find(r => vrmLC(r.Device).includes('gateway') && vrmLC(r.description) === 'longitude');
+  const a = num(la), b = num(lo);
+  return (isFinite(a) && isFinite(b)) ? [a, b] : null;
+}
+async function vrmFetchWeather() {
+  try {
+    const ll = vrmSiteLL(vrmRecords) || [VRM_WEATHER.lat, VRM_WEATHER.lon];
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${ll[0]}&longitude=${ll[1]}` +
+      `&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m` +
+      `&temperature_unit=${VRM_WEATHER.tempUnit}&wind_speed_unit=${VRM_WEATHER.windUnit}`;
+    const d = await (await fetch(url)).json();
+    vrmWeather = (d && d.current) ? Object.assign({units: d.current_units || {}}, d.current) : {error:'no data'};
+  } catch(e) { vrmWeather = {error: e.message}; }
+  vrmRender(vrmRecords);
+}
+function vrmEsc(s) { return String(s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function vrmWeatherCard(label) {
+  const w = vrmWeather;
+  if (!w) return `<div class="kpi amber"><div class="k-label">${vrmEsc(label)}</div><div class="k-val big none">…</div><div class="k-sub">loading weather</div></div>`;
+  if (w.error) return `<div class="kpi amber"><div class="k-label">${vrmEsc(label)}</div><div class="k-val none">–</div><div class="k-sub">weather unavailable</div></div>`;
+  const t = Math.round(w.temperature_2m);
+  const tu = (w.units && w.units.temperature_2m) || '°F';
+  const cond = WMO[w.weather_code] || '—';
+  return `<div class="kpi amber"><div class="k-label">${vrmEsc(label)}</div>
+    <div class="k-val big">${t}${vrmEsc(tu)}</div><div class="k-val">${vrmEsc(cond)}</div>
+    <div class="k-sub">RH ${w.relative_humidity_2m}% · wind ${Math.round(w.wind_speed_10m)} ${vrmEsc(VRM_WEATHER.windUnit)}</div></div>`;
+}
+function vrmRender(records) {
+  const el = document.getElementById('vrm-featured');
+  if (!el) return;
+  const names = vrmCustomNames(records);
+  el.innerHTML = VRM_FEATURED.map(f => {
+    if (f.weather) return vrmWeatherCard(f.label);
+    const found = f.items.map(it => vrmFind(records, it, names));
+    const anyHit = found.some(Boolean);
+    const single = f.items.length === 1;
+    const vals = found.map((r, i) => r
+      ? `<div class="k-val ${single?'big':''}">${vrmEsc(vrmDisplayVal(r, f.items[i]))}</div>`
+      : `<div class="k-val ${single?'big':''} none">–</div>`).join('');
+    const sub = found.find(Boolean);
+    const subLabel = sub ? (vrmCustOf(sub, names) || vrmDev(sub)) : 'no match';
+    return `<div class="kpi ${f.amber?'amber':''} ${anyHit?'':'missing'}">
+      <div class="k-label">${vrmEsc(f.label)}</div>${vals}
+      <div class="k-sub">${vrmEsc(subLabel)}</div></div>`;
+  }).join('');
+}
+async function vrmTick() {
+  const statusWrap = document.getElementById('vrm-status-wrap');
+  const updatedEl  = document.getElementById('vrm-updated');
+  try {
+    const res = await fetch('/api/diagnostics');
+    const data = await res.json();
+    if (!res.ok || data.success === false) {
+      const detail = (data && (data.errors || data.error)) ? JSON.stringify(data.errors || data.error) : ('HTTP ' + res.status);
+      if (statusWrap) statusWrap.innerHTML = `<div class="vrm-offline">API error: ${vrmEsc(detail)}</div>`;
+      return;
+    }
+    if (statusWrap) statusWrap.innerHTML = '';
+    if (!vrmOnline) {
+      vrmOnline = true;
+      if (!vrmHeartbeatInterval) {
+        vrmHeartbeatInterval = setInterval(() => fetch('/heartbeat').catch(()=>{}), 3000);
+        fetch('/heartbeat').catch(()=>{});
+      }
+    }
+    vrmRecords = data.records || [];
+    if (updatedEl) updatedEl.textContent = 'updated ' + new Date().toLocaleTimeString();
+    vrmRender(vrmRecords);
+  } catch(e) {
+    vrmOnline = false;
+    if (statusWrap) statusWrap.innerHTML = `<div class="vrm-offline">
+      VRM server not running.<br>
+      Start it with: <code>python3 vrm-dashboard/vrm_dashboard.py</code><br>
+      then open <code>http://localhost:8787</code>
+    </div>`;
+    if (updatedEl) updatedEl.textContent = '';
+  }
+}
+function vrmInit() {
+  vrmTick();
+  setInterval(vrmTick, VRM_REFRESH_MS);
+  vrmFetchWeather();
+  setInterval(vrmFetchWeather, VRM_WEATHER.refreshMs);
+}
 
 // ── INIT ──
 loadAll();
@@ -1622,6 +1802,7 @@ recalcHrs();
 refreshAll();
 updateClock();
 setInterval(updateClock, 1000);
+vrmInit();
 </script>
 </body>
 </html>
