@@ -1,0 +1,56 @@
+#!/bin/bash
+# Resolve the dashboard project folder: prefer the folder containing this .app,
+# fall back to the known install path if the app was moved/translocated.
+MACOS_DIR="$(cd "$(dirname "$0")" && pwd)"
+REL="$(cd "$MACOS_DIR/../../.." 2>/dev/null && pwd)"
+PROJECT="$REL"
+if [ ! -f "$PROJECT/vrm_dashboard.py" ]; then
+  PROJECT="/Volumes/Dock/Downloads/Claude/vrm-dashboard"
+fi
+
+# --- diagnostics (so we can see what a Finder launch actually sees) ---
+{
+  echo "=== $(date) ==="
+  echo "ARGV0=$0"
+  echo "REL=$REL"
+  echo "PROJECT=$PROJECT"
+  echo "has_py=$([ -f "$PROJECT/vrm_dashboard.py" ] && echo yes || echo no)"
+  echo "has_token=$([ -f "$PROJECT/vrm_token.txt" ] && echo yes || echo no)"
+  echo "token_readable=$([ -r "$PROJECT/vrm_token.txt" ] && echo yes || echo no)"
+  echo "dock_readable=$([ -r /Volumes/Dock ] && echo yes || echo no)"
+  echo "env_token=${VRM_TOKEN:+set}"
+  echo "ls_PROJECT:"; ls -la "$PROJECT" 2>&1
+} >> /tmp/vrm_app_debug.log 2>&1
+
+err() { osascript -e "display dialog \"VRM Dashboard: $1\" buttons {\"OK\"} default button \"OK\" with icon caution with title \"VRM Dashboard\"" >/dev/null 2>&1; }
+cd "$PROJECT" 2>/dev/null || { err "dashboard folder not found at: $PROJECT"; exit 1; }
+
+# Find a usable python3 (Finder launches with a minimal PATH).
+PY=""
+for c in /Library/Frameworks/Python.framework/Versions/3.13/bin/python3 \
+         /usr/local/bin/python3 /opt/homebrew/bin/python3 /usr/bin/python3; do
+  [ -x "$c" ] && PY="$c" && break
+done
+[ -z "$PY" ] && PY="$(command -v python3 2>/dev/null)"
+[ -z "$PY" ] && { err "python3 was not found on this Mac."; exit 1; }
+
+# Token: env var, else vrm_token.txt in the project folder.
+if [ -z "$VRM_TOKEN" ] && [ -f vrm_token.txt ]; then
+  VRM_TOKEN="$(tr -d '\r\n' < vrm_token.txt)"; export VRM_TOKEN
+fi
+if [ -z "$VRM_TOKEN" ]; then
+  err "could not read vrm_token.txt in: $PROJECT  (if this folder is on an external/Dock volume, macOS may be blocking the app from reading it)."
+  exit 1
+fi
+
+export PORT=0 VRM_AUTOSTOP=1
+rm -f .vrm_url
+"$PY" vrm_dashboard.py >/tmp/vrm_dashboard_app.log 2>&1 &
+SRV=$!
+URL=""
+for _ in $(seq 1 60); do
+  [ -f .vrm_url ] && URL="$(cat .vrm_url)" && break
+  sleep 0.1
+done
+if [ -n "$URL" ]; then open "$URL"; else err "the server did not start (see /tmp/vrm_dashboard_app.log)."; fi
+wait "$SRV"
