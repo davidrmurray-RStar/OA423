@@ -145,6 +145,12 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(200, img.read_bytes(), "image/jpeg")
             return self._send(404, b"not found", "text/plain")
 
+        if path == "/assets/custom-gauge-panel.png":
+            img = HERE.parent / "assets" / "custom-gauge-panel.png"
+            if img.exists():
+                return self._send(200, img.read_bytes(), "image/png")
+            return self._send(404, b"not found", "text/plain")
+
         if path.startswith("/api/"):
             name = path[len("/api/"):]
             if name not in ALLOWED:
