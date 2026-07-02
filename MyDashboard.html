@@ -11,6 +11,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
 <style>
   :root {
     --ocean:#0a1628; --deep:#06101e; --hull:#0d1f36; --wake:#1a3a5c;
@@ -325,6 +326,7 @@
         <span id="vrm-updated" style="font-size:10px;color:var(--text-dim);font-family:'DM Mono',monospace;"></span>
       </div>
       <div id="vrm-status-wrap"></div>
+      <div id="vrm-gauges" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;"></div>
       <div class="kpi-grid" id="vrm-featured"></div>
     </div>
 
@@ -1734,10 +1736,78 @@ function vrmWeatherCard(label) {
     <div class="k-val big">${t}${vrmEsc(tu)}</div><div class="k-val">${vrmEsc(cond)}</div>
     <div class="k-sub">RH ${w.relative_humidity_2m}% · wind ${Math.round(w.wind_speed_10m)} ${vrmEsc(VRM_WEATHER.windUnit)}</div></div>`;
 }
+const VRM_GAUGES_CFG = [
+  { id:'soc',   label:'Battery SOC', unit:'%',  min:0,    max:100, decimals:0,
+    colors:[[0.2,'#e05c4a'],[0.5,'#d4912a'],[1,'#3aaa7a']],
+    match:{desc:'State of charge', device:'Battery Monitor'} },
+  { id:'volts', label:'Battery V',   unit:'V',  min:10.5, max:15,  decimals:1,
+    colors:[[0.29,'#e05c4a'],[0.44,'#d4912a'],[1,'#3aaa7a']],
+    match:{desc:'Voltage', device:'Battery Monitor'} },
+  { id:'amps',  label:'Battery A',   unit:'A',  min:-150, max:150, decimals:0,
+    colors:[[0.33,'#e05c4a'],[0.5,'#7a9bb0'],[1,'#36c2a4']],
+    match:{desc:'Current', device:'Battery Monitor'} },
+];
+let vrmGaugeMap = {};
+
+function vrmGaugeOpt(val, cfg) {
+  const v = (val !== null && isFinite(val)) ? val : cfg.min;
+  const display = (val !== null && isFinite(val)) ? parseFloat(val).toFixed(cfg.decimals) + cfg.unit : '–';
+  return {
+    backgroundColor:'transparent',
+    series:[{
+      type:'gauge', startAngle:210, endAngle:-30,
+      min:cfg.min, max:cfg.max, radius:'88%', center:['50%','56%'],
+      axisLine:{ lineStyle:{ width:14, color:cfg.colors } },
+      progress:{ show:true, width:14, roundCap:true },
+      pointer:{ show:false }, axisTick:{ show:false },
+      splitLine:{ show:false }, axisLabel:{ show:false }, anchor:{ show:false },
+      detail:{
+        valueAnimation:true, formatter:()=>display,
+        color:'#dde8f0', fontSize:20, fontWeight:'500',
+        fontFamily:"'DM Mono',monospace", offsetCenter:[0,'30%']
+      },
+      data:[{value:v}]
+    }]
+  };
+}
+
+function vrmInitGauges() {
+  if (typeof echarts==='undefined') return;
+  const wrap = document.getElementById('vrm-gauges');
+  if (!wrap || wrap.dataset.init) return;
+  wrap.dataset.init = '1';
+  wrap.innerHTML = VRM_GAUGES_CFG.map(g=>`
+    <div style="background:var(--card-bg);border:.5px solid var(--card-border);border-radius:var(--radius-sm);padding:10px 6px 4px;">
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text-dim);text-align:center;margin-bottom:2px;">${g.label}</div>
+      <div id="gc-${g.id}" style="width:100%;height:130px;"></div>
+    </div>`).join('');
+  VRM_GAUGES_CFG.forEach(g=>{
+    const el = document.getElementById('gc-'+g.id);
+    if (!el) return;
+    const inst = echarts.init(el, null, {renderer:'canvas'});
+    vrmGaugeMap[g.id] = inst;
+    inst.setOption(vrmGaugeOpt(null, g));
+  });
+}
+
+function vrmUpdateGauges(records, names) {
+  if (typeof echarts==='undefined') return;
+  if (!Object.keys(vrmGaugeMap).length) vrmInitGauges();
+  VRM_GAUGES_CFG.forEach(g=>{
+    const inst = vrmGaugeMap[g.id];
+    if (!inst) return;
+    const rec = vrmFind(records, g.match, names);
+    const val = rec ? vrmToNum(rec) : null;
+    inst.setOption(vrmGaugeOpt(isFinite(val)?val:null, g));
+  });
+}
+
 function vrmRender(records) {
   const el = document.getElementById('vrm-featured');
   if (!el) return;
   const names = vrmCustomNames(records);
+  vrmInitGauges();
+  vrmUpdateGauges(records, names);
   el.innerHTML = VRM_FEATURED.map(f => {
     if (f.weather) return vrmWeatherCard(f.label);
     const found = f.items.map(it => vrmFind(records, it, names));
