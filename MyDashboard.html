@@ -158,6 +158,13 @@
   .kpi .k-sub{font-size:10px;color:var(--text-dim);margin-top:8px;line-height:1.4;}
   .vrm-offline{background:var(--card-bg);border:.5px solid var(--card-border);border-radius:var(--radius);padding:32px 24px;text-align:center;color:var(--text-dim);font-size:13px;line-height:1.6;}
   .vrm-offline code{font-family:'DM Mono',monospace;font-size:11px;background:rgba(255,255,255,.06);padding:2px 8px;border-radius:6px;}
+  .vrm-card{background:var(--card-bg);border:.5px solid var(--card-border);border-radius:var(--radius);padding:14px;}
+  .vrm-card-label{font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-dim);text-align:center;margin-top:6px;}
+  .vrm-legend{display:flex;flex-wrap:wrap;gap:4px 10px;justify-content:center;margin-top:8px;}
+  .vrm-legend span{display:flex;align-items:center;gap:4px;font-size:9px;color:var(--text-dim);}
+  .vrm-gauge-row{display:grid;grid-template-columns:1fr 1.5fr 1fr;gap:12px;margin-bottom:12px;}
+  .vrm-temp-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px;}
+  @media(max-width:640px){.vrm-gauge-row{grid-template-columns:1fr;}.vrm-temp-row{grid-template-columns:repeat(2,1fr);}}
 
   /* CHART */
   .chart-card{background:var(--card-bg);border:.5px solid var(--card-border);border-radius:var(--radius);padding:16px;margin-bottom:16px;}
@@ -322,12 +329,36 @@
     <div class="view" id="view-live">
       <div style="height:16px;"></div>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
-        <div style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-dim);">Victron Live</div>
+        <span id="vrm-meas" style="font-size:11px;color:var(--text-dim);"></span>
         <span id="vrm-updated" style="font-size:10px;color:var(--text-dim);font-family:'DM Mono',monospace;"></span>
       </div>
       <div id="vrm-status-wrap"></div>
-      <div id="vrm-gauges" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;"></div>
-      <div class="kpi-grid" id="vrm-featured"></div>
+      <!-- main gauge row -->
+      <div class="vrm-gauge-row" id="vrm-main-row">
+        <div class="vrm-card">
+          <div id="gc-battery" style="width:100%;height:190px;"></div>
+          <div class="vrm-card-label">Battery Bank Stats</div>
+          <div class="vrm-legend" id="vrm-battery-legend"></div>
+        </div>
+        <div class="vrm-card">
+          <div id="gc-soc" style="width:100%;height:240px;"></div>
+          <div class="vrm-card-label">Battery State of Charge</div>
+        </div>
+        <div class="vrm-card">
+          <div id="gc-grid" style="width:100%;height:190px;"></div>
+          <div class="vrm-card-label">Grid</div>
+        </div>
+      </div>
+      <!-- temperature row -->
+      <div class="vrm-temp-row" id="vrm-temp-row">
+        <div class="vrm-card"><div id="gc-fridge"  style="width:100%;height:140px;"></div><div class="vrm-card-label">Fridge</div><div id="vrm-rh-fridge"  style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:3px;"></div></div>
+        <div class="vrm-card"><div id="gc-kitchen" style="width:100%;height:140px;"></div><div class="vrm-card-label">Kitchen</div><div id="vrm-rh-kitchen" style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:3px;"></div></div>
+        <div class="vrm-card"><div id="gc-vicroom" style="width:100%;height:140px;"></div><div class="vrm-card-label">VicRoom</div><div id="vrm-rh-vicroom" style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:3px;"></div></div>
+        <div class="vrm-card"><div id="gc-engroom" style="width:100%;height:140px;"></div><div class="vrm-card-label">Engine Room</div><div id="vrm-rh-engroom" style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:3px;"></div></div>
+      </div>
+      <!-- KPI tiles toggle -->
+      <button id="vrm-tiles-btn" onclick="vrmToggleTiles()" style="font-size:11px;padding:5px 14px;border-radius:16px;border:.5px solid var(--card-border);background:transparent;color:var(--text-dim);cursor:pointer;font-family:'DM Sans',sans-serif;margin-bottom:12px;">+ Show tiles</button>
+      <div class="kpi-grid" id="vrm-featured" style="display:none;"></div>
     </div>
 
   </div><!-- scroll-area -->
@@ -1736,78 +1767,174 @@ function vrmWeatherCard(label) {
     <div class="k-val big">${t}${vrmEsc(tu)}</div><div class="k-val">${vrmEsc(cond)}</div>
     <div class="k-sub">RH ${w.relative_humidity_2m}% · wind ${Math.round(w.wind_speed_10m)} ${vrmEsc(VRM_WEATHER.windUnit)}</div></div>`;
 }
-const VRM_GAUGES_CFG = [
-  { id:'soc',   label:'Battery SOC', unit:'%',  min:0,    max:100, decimals:0,
-    colors:[[0.2,'#e05c4a'],[0.5,'#d4912a'],[1,'#3aaa7a']],
-    match:{desc:'State of charge', device:'Battery Monitor'} },
-  { id:'volts', label:'Battery V',   unit:'V',  min:10.5, max:15,  decimals:1,
-    colors:[[0.29,'#e05c4a'],[0.44,'#d4912a'],[1,'#3aaa7a']],
-    match:{desc:'Voltage', device:'Battery Monitor'} },
-  { id:'amps',  label:'Battery A',   unit:'A',  min:-150, max:150, decimals:0,
-    colors:[[0.33,'#e05c4a'],[0.5,'#7a9bb0'],[1,'#36c2a4']],
-    match:{desc:'Current', device:'Battery Monitor'} },
-];
 let vrmGaugeMap = {};
+let vrmSysVoltage = 24;
+let vrmTilesShown = false;
 
-function vrmGaugeOpt(val, cfg) {
-  const v = (val !== null && isFinite(val)) ? val : cfg.min;
-  const display = (val !== null && isFinite(val)) ? parseFloat(val).toFixed(cfg.decimals) + cfg.unit : '–';
-  return {
-    backgroundColor:'transparent',
-    series:[{
-      type:'gauge', startAngle:210, endAngle:-30,
-      min:cfg.min, max:cfg.max, radius:'88%', center:['50%','56%'],
-      axisLine:{ lineStyle:{ width:14, color:cfg.colors } },
-      progress:{ show:true, width:14, roundCap:true },
-      pointer:{ show:false }, axisTick:{ show:false },
-      splitLine:{ show:false }, axisLabel:{ show:false }, anchor:{ show:false },
-      detail:{
-        valueAnimation:true, formatter:()=>display,
-        color:'#dde8f0', fontSize:20, fontWeight:'500',
-        fontFamily:"'DM Mono',monospace", offsetCenter:[0,'30%']
-      },
-      data:[{value:v}]
-    }]
-  };
+const VRM_TEMP_SENSORS = [
+  {id:'fridge',  customName:'Fridge'},
+  {id:'kitchen', customName:'Kitchen'},
+  {id:'vicroom', customName:'VicRoom'},
+  {id:'engroom', customName:'Engine Room'},
+];
+
+function vrmVoltageCfg(sysV) {
+  return sysV >= 20
+    ? { min:22, max:29,
+        colors:[[3/7,'#e05c4a'],[4.3/7,'#e88c30'],[4.4/7,'#d4c030'],[4.6/7,'#90c040'],[1,'#3aaa7a']],
+        legend:[{c:'#e05c4a',l:'< 25 V'},{c:'#e88c30',l:'25–26.3 V'},{c:'#d4c030',l:'26.3–26.4 V'},{c:'#90c040',l:'26.4–26.6 V'},{c:'#3aaa7a',l:'> 26.6 V'}] }
+    : { min:10.5, max:15,
+        colors:[[1/4.5,'#e05c4a'],[1.5/4.5,'#e88c30'],[1.7/4.5,'#d4c030'],[2/4.5,'#90c040'],[1,'#3aaa7a']],
+        legend:[{c:'#e05c4a',l:'< 11.5 V'},{c:'#e88c30',l:'11.5–12 V'},{c:'#d4c030',l:'12–12.2 V'},{c:'#90c040',l:'12.2–12.5 V'},{c:'#3aaa7a',l:'> 12.5 V'}] };
 }
 
-function vrmInitGauges() {
-  if (typeof echarts==='undefined') return;
-  const wrap = document.getElementById('vrm-gauges');
-  if (!wrap || wrap.dataset.init) return;
-  wrap.dataset.init = '1';
-  wrap.innerHTML = VRM_GAUGES_CFG.map(g=>`
-    <div style="background:var(--card-bg);border:.5px solid var(--card-border);border-radius:var(--radius-sm);padding:10px 6px 4px;">
-      <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text-dim);text-align:center;margin-bottom:2px;">${g.label}</div>
-      <div id="gc-${g.id}" style="width:100%;height:130px;"></div>
-    </div>`).join('');
-  VRM_GAUGES_CFG.forEach(g=>{
-    const el = document.getElementById('gc-'+g.id);
-    if (!el) return;
-    const inst = echarts.init(el, null, {renderer:'canvas'});
-    vrmGaugeMap[g.id] = inst;
-    inst.setOption(vrmGaugeOpt(null, g));
+function vrmTempColor(degF) {
+  if (degF < 40) return '#378add';
+  if (degF < 70) return '#3aaa7a';
+  if (degF < 90) return '#d4912a';
+  return '#e05c4a';
+}
+
+function vrmBatteryOpt(voltage, current, vcfg) {
+  const v = (voltage !== null && isFinite(voltage)) ? voltage : (vcfg.min+vcfg.max)/2;
+  const vStr = (voltage !== null && isFinite(voltage)) ? voltage.toFixed(2)+' V' : '–';
+  const aStr = (current !== null && isFinite(current)) ? current.toFixed(2)+' A' : '–';
+  return { backgroundColor:'transparent', series:[{ type:'gauge', startAngle:200, endAngle:-20, min:vcfg.min, max:vcfg.max,
+    radius:'82%', center:['50%','58%'],
+    axisLine:{ lineStyle:{ width:18, color:vcfg.colors } },
+    progress:{ show:false },
+    pointer:{ length:'68%', width:4, itemStyle:{ color:'#dde8f0' } },
+    axisTick:{ splitNumber:5, lineStyle:{ color:'rgba(255,255,255,.2)', width:1 }, length:4 },
+    splitLine:{ lineStyle:{ color:'rgba(255,255,255,.3)', width:2 }, length:8 },
+    axisLabel:{ color:'#7a9bb0', fontSize:9, distance:-28 },
+    anchor:{ show:true, size:8, itemStyle:{ color:'#dde8f0' } },
+    detail:{ formatter:()=>`{v|${vStr}}\n{a|${aStr}}`,
+      rich:{ v:{fontSize:17,fontWeight:'500',color:'#dde8f0',fontFamily:"'DM Mono',monospace",lineHeight:26}, a:{fontSize:13,color:'#f2b338',fontFamily:"'DM Mono',monospace"} },
+      offsetCenter:[0,'30%'] },
+    data:[{value:v}]
+  }]};
+}
+
+function vrmSocOpt(soc, state, ttg) {
+  const v = (soc !== null && isFinite(soc)) ? soc : 0;
+  const socStr = (soc !== null && isFinite(soc)) ? soc.toFixed(1)+'%' : '–';
+  const stateStr = state || '';
+  const ttgStr = ttg ? 'TIME TO GO '+ttg : '';
+  let gradColor;
+  try { gradColor = new echarts.graphic.LinearGradient(0,0,1,0,[{offset:0,color:'#9090ff'},{offset:1,color:'#4060d0'}]); }
+  catch(e) { gradColor = '#6060e0'; }
+  return { backgroundColor:'transparent', series:[{ type:'gauge', startAngle:90, endAngle:-270, clockwise:true, min:0, max:100,
+    radius:'88%', center:['50%','50%'],
+    axisLine:{ lineStyle:{ width:24, color:[[1,'rgba(255,255,255,.06)']] } },
+    progress:{ show:true, width:24, roundCap:false, itemStyle:{ color:gradColor } },
+    pointer:{ show:false }, axisTick:{ show:false }, splitLine:{ show:false }, axisLabel:{ show:false }, anchor:{ show:false },
+    detail:{ formatter:()=>`{pct|${socStr}}\n{st|${stateStr}}\n{ttg|${ttgStr}}`,
+      rich:{ pct:{fontSize:36,fontWeight:'bold',color:'#6680ff',fontFamily:"'DM Mono',monospace",lineHeight:48}, st:{fontSize:16,color:'#6680ff',lineHeight:28}, ttg:{fontSize:11,color:'#36c2a4',lineHeight:20} },
+      offsetCenter:[0,0] },
+    data:[{value:v}]
+  }]};
+}
+
+function vrmGridOpt(voltage, current) {
+  const v = (voltage !== null && isFinite(voltage)) ? Math.min(voltage, 140) : 0;
+  const vStr = (voltage !== null && isFinite(voltage)) ? voltage.toFixed(1)+' V' : '–';
+  const aStr = (current !== null && isFinite(current)) ? current.toFixed(1)+' A' : '–';
+  return { backgroundColor:'transparent', series:[{ type:'gauge', startAngle:210, endAngle:-30, min:0, max:140,
+    radius:'85%', center:['50%','52%'],
+    axisLine:{ lineStyle:{ width:14, color:[[1,'rgba(255,255,255,.06)']] } },
+    progress:{ show:true, width:14, roundCap:true, itemStyle:{ color:'#36c2a4' } },
+    pointer:{ show:false }, axisTick:{ show:false }, splitLine:{ show:false }, axisLabel:{ show:false },
+    anchor:{ show:true, size:10, itemStyle:{ color:'#f2b338', borderColor:'#f2b338' } },
+    detail:{ formatter:()=>`{v|${vStr}}\n{a|${aStr}}`,
+      rich:{ v:{fontSize:20,fontWeight:'500',color:'#36c2a4',fontFamily:"'DM Mono',monospace",lineHeight:30}, a:{fontSize:14,color:'#f2b338',fontFamily:"'DM Mono',monospace"} },
+      offsetCenter:[0,'18%'] },
+    data:[{value:v}]
+  }]};
+}
+
+function vrmTempGaugeOpt(tempF, color) {
+  const v = (tempF !== null && isFinite(tempF)) ? Math.min(tempF, 120) : 0;
+  const tempStr = (tempF !== null && isFinite(tempF)) ? Math.round(tempF)+'°F' : '–';
+  return { backgroundColor:'transparent', series:[{ type:'gauge', startAngle:210, endAngle:-30, min:0, max:120,
+    radius:'80%', center:['50%','54%'],
+    axisLine:{ lineStyle:{ width:10, color:[[1,'rgba(255,255,255,.06)']] } },
+    progress:{ show:true, width:10, roundCap:true, itemStyle:{ color:color||'#7a9bb0' } },
+    pointer:{ show:false }, axisTick:{ show:false }, splitLine:{ show:false }, axisLabel:{ show:false }, anchor:{ show:false },
+    detail:{ formatter:()=>tempStr, color:'#dde8f0', fontSize:18, fontWeight:'500', fontFamily:"'DM Mono',monospace", offsetCenter:[0,'20%'] },
+    data:[{value:v}]
+  }]};
+}
+
+function vrmBuildLegend(vcfg) {
+  const el = document.getElementById('vrm-battery-legend');
+  if (!el) return;
+  el.innerHTML = vcfg.legend.map(l=>`<span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${l.c};margin-right:3px;vertical-align:middle;"></span>${l.l}</span>`).join('');
+}
+
+function vrmInitAllGauges() {
+  if (typeof echarts==='undefined' || vrmGaugeMap.soc) return;
+  ['battery','soc','grid','fridge','kitchen','vicroom','engroom'].forEach(id=>{
+    const el = document.getElementById('gc-'+id);
+    if (el) vrmGaugeMap[id] = echarts.init(el, null, {renderer:'canvas'});
+  });
+  const vcfg = vrmVoltageCfg(vrmSysVoltage);
+  if (vrmGaugeMap.battery) vrmGaugeMap.battery.setOption(vrmBatteryOpt(null, null, vcfg));
+  if (vrmGaugeMap.soc)     vrmGaugeMap.soc.setOption(vrmSocOpt(null, null, null));
+  if (vrmGaugeMap.grid)    vrmGaugeMap.grid.setOption(vrmGridOpt(null, null));
+  VRM_TEMP_SENSORS.forEach(t=>{ if(vrmGaugeMap[t.id]) vrmGaugeMap[t.id].setOption(vrmTempGaugeOpt(null,'#7a9bb0')); });
+  vrmBuildLegend(vcfg);
+}
+
+function vrmUpdateAllGauges(records, names) {
+  if (!vrmGaugeMap.soc) { vrmInitAllGauges(); if (!vrmGaugeMap.soc) return; }
+
+  const voltage = vrmToNum(vrmFind(records, {desc:'Voltage', device:'Battery Monitor'}, names));
+  const current = vrmToNum(vrmFind(records, {desc:'Current', device:'Battery Monitor'}, names));
+  if (isFinite(voltage)) {
+    const sv = voltage > 18 ? 24 : 12;
+    if (sv !== vrmSysVoltage) { vrmSysVoltage = sv; vrmBuildLegend(vrmVoltageCfg(sv)); }
+  }
+  const vcfg = vrmVoltageCfg(vrmSysVoltage);
+  if (vrmGaugeMap.battery) vrmGaugeMap.battery.setOption(vrmBatteryOpt(isFinite(voltage)?voltage:null, isFinite(current)?current:null, vcfg));
+
+  const soc = vrmToNum(vrmFind(records, {desc:'State of charge', device:'Battery Monitor'}, names));
+  const stateRec = vrmFind(records, {desc:'VE.Bus state', device:'VE.Bus'}, names);
+  const state = stateRec ? vrmFmt(stateRec) : '';
+  const ttgRec = vrmFind(records, {desc:'Time to go', device:'Battery Monitor'}, names);
+  const ttg = ttgRec ? vrmFmt(ttgRec) : '';
+  if (vrmGaugeMap.soc) vrmGaugeMap.soc.setOption(vrmSocOpt(isFinite(soc)?soc:null, state, ttg));
+
+  const gridV = vrmToNum(vrmFind(records, {desc:'Input voltage phase 1', device:'VE.Bus'}, names));
+  const gridA = vrmToNum(vrmFind(records, {desc:'Input current phase 1', device:'VE.Bus'}, names));
+  if (vrmGaugeMap.grid) vrmGaugeMap.grid.setOption(vrmGridOpt(isFinite(gridV)?gridV:null, isFinite(gridA)?gridA:null));
+
+  VRM_TEMP_SENSORS.forEach(t => {
+    const tRec = vrmFind(records, {desc:'Temperature', customName:t.customName}, names);
+    const hRec = vrmFind(records, {desc:'Humidity', customName:t.customName}, names);
+    const tempC = tRec ? vrmToNum(tRec) : null;
+    const tempF = (tempC !== null && isFinite(tempC)) ? tempC*9/5+32 : null;
+    const hum = hRec ? vrmToNum(hRec) : null;
+    const color = (tempF !== null && isFinite(tempF)) ? vrmTempColor(tempF) : '#7a9bb0';
+    if (vrmGaugeMap[t.id]) vrmGaugeMap[t.id].setOption(vrmTempGaugeOpt(tempF, color));
+    const rhEl = document.getElementById('vrm-rh-'+t.id);
+    if (rhEl) rhEl.textContent = (hum !== null && isFinite(hum)) ? 'RH '+hum.toFixed(1)+' %' : '';
   });
 }
 
-function vrmUpdateGauges(records, names) {
-  if (typeof echarts==='undefined') return;
-  if (!Object.keys(vrmGaugeMap).length) vrmInitGauges();
-  VRM_GAUGES_CFG.forEach(g=>{
-    const inst = vrmGaugeMap[g.id];
-    if (!inst) return;
-    const rec = vrmFind(records, g.match, names);
-    const val = rec ? vrmToNum(rec) : null;
-    inst.setOption(vrmGaugeOpt(isFinite(val)?val:null, g));
-  });
+function vrmToggleTiles() {
+  vrmTilesShown = !vrmTilesShown;
+  const el = document.getElementById('vrm-featured');
+  const btn = document.getElementById('vrm-tiles-btn');
+  if (el) el.style.display = vrmTilesShown ? '' : 'none';
+  if (btn) btn.textContent = vrmTilesShown ? '− Hide tiles' : '+ Show tiles';
 }
 
 function vrmRender(records) {
   const el = document.getElementById('vrm-featured');
   if (!el) return;
   const names = vrmCustomNames(records);
-  vrmInitGauges();
-  vrmUpdateGauges(records, names);
+  vrmInitAllGauges();
+  vrmUpdateAllGauges(records, names);
   el.innerHTML = VRM_FEATURED.map(f => {
     if (f.weather) return vrmWeatherCard(f.label);
     const found = f.items.map(it => vrmFind(records, it, names));
