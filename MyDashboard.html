@@ -1817,19 +1817,19 @@ function vrmBatteryOpt(voltage, current, vcfg) {
 
 function vrmSocOpt(soc, state, ttg) {
   const v = (soc !== null && isFinite(soc)) ? soc : 0;
-  const socStr = (soc !== null && isFinite(soc)) ? soc.toFixed(1)+'%' : '–';
+  const socStr = (soc !== null && isFinite(soc)) ? Math.round(soc)+'%' : '–';
   const stateStr = state || '';
-  const ttgStr = ttg ? 'TIME TO GO '+ttg : '';
+  const ttgStr = ttg ? 'TTG '+ttg : '';
   let gradColor;
   try { gradColor = new echarts.graphic.LinearGradient(0,0,1,0,[{offset:0,color:'#9090ff'},{offset:1,color:'#4060d0'}]); }
   catch(e) { gradColor = '#6060e0'; }
   return { backgroundColor:'transparent', series:[{ type:'gauge', startAngle:90, endAngle:-270, clockwise:true, min:0, max:100,
-    radius:'88%', center:['50%','50%'],
-    axisLine:{ lineStyle:{ width:24, color:[[1,'rgba(255,255,255,.06)']] } },
-    progress:{ show:true, width:24, roundCap:false, itemStyle:{ color:gradColor } },
+    radius:'82%', center:['50%','50%'],
+    axisLine:{ lineStyle:{ width:18, color:[[1,'rgba(255,255,255,.06)']] } },
+    progress:{ show:true, width:18, roundCap:false, itemStyle:{ color:gradColor } },
     pointer:{ show:false }, axisTick:{ show:false }, splitLine:{ show:false }, axisLabel:{ show:false }, anchor:{ show:false },
     detail:{ formatter:()=>`{pct|${socStr}}\n{st|${stateStr}}\n{ttg|${ttgStr}}`,
-      rich:{ pct:{fontSize:36,fontWeight:'bold',color:'#6680ff',fontFamily:"'DM Mono',monospace",lineHeight:48}, st:{fontSize:16,color:'#6680ff',lineHeight:28}, ttg:{fontSize:11,color:'#36c2a4',lineHeight:20} },
+      rich:{ pct:{fontSize:28,fontWeight:'bold',color:'#6680ff',fontFamily:"'DM Mono',monospace",lineHeight:36}, st:{fontSize:13,color:'#8899ff',lineHeight:22}, ttg:{fontSize:10,color:'#36c2a4',lineHeight:16} },
       offsetCenter:[0,0] },
     data:[{value:v}]
   }]};
