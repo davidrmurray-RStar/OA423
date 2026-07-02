@@ -1665,6 +1665,12 @@ function switchTab(name) {
   document.querySelectorAll('.view').forEach(v=>{
     v.classList.toggle('active',v.id==='view-'+name);
   });
+  if (name === 'live') {
+    setTimeout(function() {
+      [_vrmSocChart, _vrmBattChart, _vrmGridChart].forEach(function(c){ c && c.resize(); });
+      Object.values(_vrmTempCharts).forEach(function(t){ t && t.chart && t.chart.resize(); });
+    }, 50);
+  }
 }
 
 // ── REFRESH ──
