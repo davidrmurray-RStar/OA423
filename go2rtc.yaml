@@ -5,5 +5,13 @@ api:
   listen: :1984
   origin: '*'
 
+webrtc:
+  listen: 192.168.0.102:8555/udp
+  candidates:
+    - 192.168.0.102:8555
+  filters:
+    networks:
+      - udp4
+
 log:
   level: warn
