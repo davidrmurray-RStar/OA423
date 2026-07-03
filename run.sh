@@ -1,26 +1,34 @@
 #!/data/data/com.termux/files/usr/bin/bash
+
+# Sync latest files from shared storage (non-fatal if sdcard unavailable)
 mkdir -p ~/vrm-dashboard
-cp ~/storage/shared/OA423/vrm_token.txt ~/vrm-dashboard/vrm_token.txt
-cp ~/storage/shared/OA423/vrm_dashboard.py ~/vrm-dashboard/vrm_dashboard.py
-cp ~/storage/shared/OA423/MyDashboard.html ~/MyDashboard.html
-cp ~/storage/shared/OA423/go2rtc.yaml ~/go2rtc.yaml
-cp -r ~/storage/shared/OA423/assets ~/assets 2>/dev/null || true
+cp ~/storage/shared/OA423/vrm_token.txt   ~/vrm-dashboard/vrm_token.txt  2>/dev/null || true
+cp ~/storage/shared/OA423/vrm_dashboard.py ~/vrm-dashboard/vrm_dashboard.py 2>/dev/null || true
+cp ~/storage/shared/OA423/MyDashboard.html ~/MyDashboard.html             2>/dev/null || true
+cp ~/storage/shared/OA423/go2rtc.yaml      ~/go2rtc.yaml                  2>/dev/null || true
+cp -r ~/storage/shared/OA423/assets        ~/assets                        2>/dev/null || true
 
-export VRM_TOKEN="$(cat ~/vrm-dashboard/vrm_token.txt)"
-export PORT=8787
-
-echo "Starting go2rtc..."
-pkill -f go2rtc 2>/dev/null; sleep 1
-nohup ~/go2rtc -config ~/go2rtc.yaml > ~/go2rtc.log 2>&1 & disown
-sleep 3
-
-if pgrep -f go2rtc > /dev/null; then
-  echo "go2rtc running OK on port 1984"
+# Start go2rtc if not already running
+if pgrep -f go2rtc > /dev/null 2>&1; then
+  echo "go2rtc already running"
 else
-  echo "go2rtc FAILED:"
-  cat ~/go2rtc.log
+  nohup ~/go2rtc -config ~/go2rtc.yaml > ~/go2rtc.log 2>&1 & disown
+  echo "go2rtc started"
 fi
 
-echo "Starting VRM dashboard at http://localhost:8787 ..."
-cd ~/vrm-dashboard
-python3 vrm_dashboard.py
+# Start VRM dashboard with auto-restart loop (runs in background)
+if pgrep -f vrm_dashboard > /dev/null 2>&1; then
+  echo "VRM dashboard already running at http://localhost:8787/"
+else
+  nohup bash -c '
+    export VRM_TOKEN="$(cat ~/vrm-dashboard/vrm_token.txt)"
+    export PORT=8787
+    cd ~/vrm-dashboard
+    while true; do
+      python3 vrm_dashboard.py
+      echo "[$(date)] vrm_dashboard exited, restarting in 3s..." >> ~/vrm.log
+      sleep 3
+    done
+  ' >> ~/vrm.log 2>&1 & disown
+  echo "VRM dashboard starting at http://localhost:8787/"
+fi
