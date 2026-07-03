@@ -254,6 +254,7 @@
         </div>
         <button onclick="showUpdateHours()" style="background:rgba(200,146,42,.08);border:.5px solid var(--brass);cursor:pointer;padding:6px 10px;border-radius:8px;color:var(--brass);font-size:11px;font-family:'DM Sans',sans-serif;font-weight:500;letter-spacing:.5px;text-transform:uppercase;transition:all .2s;-webkit-tap-highlight-color:transparent;">⏱ Hours</button>
         <button onclick="showConfig()" id="gear-btn" title="Settings" style="background:rgba(255,255,255,.06);border:.5px solid var(--card-border);cursor:pointer;padding:6px 10px;border-radius:8px;color:var(--text-dim);font-size:11px;font-family:'DM Sans',sans-serif;font-weight:500;letter-spacing:.5px;text-transform:uppercase;transition:all .2s;-webkit-tap-highlight-color:transparent;">Settings</button>
+        <button onclick="toggleFullscreen()" id="fs-btn" title="Fullscreen" style="background:rgba(255,255,255,.06);border:.5px solid var(--card-border);cursor:pointer;padding:6px 10px;border-radius:8px;color:var(--text-dim);font-size:15px;line-height:1;transition:all .2s;-webkit-tap-highlight-color:transparent;">⛶</button>
       </div>
     </div>
   </header>
@@ -349,16 +350,16 @@
       <div id="vrm-status-wrap"></div>
       <!-- main gauge row -->
       <div class="vrm-gauge-row" id="vrm-main-row">
-        <!-- col 1: Battery Stats on top, SOC below (2/3) -->
+        <!-- col 1: SOC on top, Battery Stats below (2/3) -->
         <div class="vrm-card" style="display:flex;flex-direction:column;gap:12px;">
+          <div>
+            <div id="gc-soc" style="width:100%;height:400px;"></div>
+            <div class="vrm-card-label">Battery State of Charge</div>
+          </div>
           <div>
             <div id="gc-battery" style="width:100%;height:280px;"></div>
             <div class="vrm-card-label">Battery Bank Stats</div>
             <div class="vrm-legend" id="vrm-battery-legend"></div>
-          </div>
-          <div>
-            <div id="gc-soc" style="width:100%;height:400px;"></div>
-            <div class="vrm-card-label">Battery State of Charge</div>
           </div>
         </div>
         <!-- col 2: L1 + L2 stacked (1/3) -->
@@ -2315,6 +2316,23 @@ setInterval(updateClock, 1000);
   if (cached) { try { var p=JSON.parse(cached); if(p.lat&&p.lon){ var f=document.getElementById('windy-frame'); if(f) f.src=windyUrl(p.lat.toFixed(5),p.lon.toFixed(5)); _gpsLat=p.lat; _gpsLon=p.lon; var st=document.getElementById('gps-status'); if(st) st.textContent=p.lat.toFixed(4)+'°  '+p.lon.toFixed(4)+'°'; } } catch(e){} }
 })();
 vrmInit();
+
+function toggleFullscreen() {
+  const btn = document.getElementById('fs-btn');
+  if (!document.fullscreenElement) {
+    (document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen).call(document.documentElement);
+  } else {
+    (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+  }
+}
+document.addEventListener('fullscreenchange', function() {
+  const btn = document.getElementById('fs-btn');
+  if (btn) btn.textContent = document.fullscreenElement ? '✕' : '⛶';
+});
+document.addEventListener('webkitfullscreenchange', function() {
+  const btn = document.getElementById('fs-btn');
+  if (btn) btn.textContent = document.webkitFullscreenElement ? '✕' : '⛶';
+});
 </script>
 </body>
 </html>
