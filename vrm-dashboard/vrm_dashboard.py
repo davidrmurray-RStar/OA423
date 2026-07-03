@@ -135,9 +135,26 @@ class Handler(BaseHTTPRequestHandler):
             html = (HERE.parent / "MyDashboard.html").read_bytes()
             return self._send(200, html, "text/html; charset=utf-8")
 
+        if path == "/manifest.json":
+            manifest = json.dumps({
+                "name": "Sunset Serenade",
+                "short_name": "OA 423",
+                "description": "QA 423 vessel dashboard",
+                "start_url": "/",
+                "display": "fullscreen",
+                "background_color": "#06101e",
+                "theme_color": "#06101e",
+                "orientation": "landscape"
+            }).encode()
+            return self._send(200, manifest, "application/manifest+json")
+
         if path == "/config.js":
             cfg = f'window.VRM_CONFIG = {{ site: "{SITE}" }};'
             return self._send(200, cfg.encode(), "application/javascript")
+
+        if path in ("/offline", "/offline.html"):
+            html = (HERE.parent / "MaintOverview.html").read_bytes()
+            return self._send(200, html, "text/html; charset=utf-8")
 
         if path == "/SS_app.jpg":
             img = HERE.parent / "SS_app.jpg"
