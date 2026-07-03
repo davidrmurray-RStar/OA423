@@ -6,7 +6,9 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Sunset Serenade">
-<title>Sunset Serenade — Maintenance</title>
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="/manifest.json">
+<title>Sunset Serenade — QA 423 Dashboard</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -60,7 +62,7 @@
   /* HEADER */
   header{display:flex;align-items:center;justify-content:space-between;padding:14px 20px 10px;border-bottom:.5px solid var(--border);flex-shrink:0;gap:12px;position:relative;z-index:10;}
   .vessel-title{display:flex;align-items:center;gap:10px;min-width:0;}
-  .boat-thumb{width:64px;height:64px;border-radius:50%;object-fit:cover;border:1.5px solid var(--brass);flex-shrink:0;}
+  .boat-thumb{width:128px;height:128px;border-radius:50%;object-fit:cover;border:1.5px solid var(--brass);flex-shrink:0;}
   .vessel-name{font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:2px;color:var(--brass-light);line-height:1;white-space:nowrap;}
   .vessel-sub{font-size:10px;color:var(--text-dim);letter-spacing:1.5px;text-transform:uppercase;white-space:nowrap;}
   .header-center{display:flex;gap:14px;align-items:flex-end;}
@@ -162,7 +164,7 @@
   .vrm-card-label{font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-dim);text-align:center;margin-top:6px;}
   .vrm-legend{display:flex;flex-wrap:wrap;gap:4px 10px;justify-content:center;margin-top:8px;}
   .vrm-legend span{display:flex;align-items:center;gap:4px;font-size:9px;color:var(--text-dim);}
-  .vrm-gauge-row{display:grid;grid-template-columns:1fr 1.5fr 1fr;gap:12px;margin-bottom:12px;}
+  .vrm-gauge-row{display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-bottom:12px;}
   .vrm-temp-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px;}
   @media(max-width:640px){.vrm-gauge-row{grid-template-columns:1fr;}.vrm-temp-row{grid-template-columns:repeat(2,1fr);}}
 
@@ -240,7 +242,7 @@
       <img src="SS_app.jpg" class="boat-thumb" id="boat-thumb-img" alt="Sunset Serenade">
       <div>
         <div class="vessel-name" id="vessel-name-el">Sunset Serenade</div>
-        <div class="vessel-sub"><span id="vessel-id-el">OA 423</span> · Maintenance</div>
+        <div class="vessel-sub"><span id="vessel-id-el">QA 423</span> · Dashboard</div>
       </div>
     </div>
     <div class="header-center" id="header-chips" style="display:flex;gap:14px;align-items:flex-end;"></div>
@@ -250,22 +252,37 @@
           <div id="clock-date">—</div>
           <div id="clock-time">—</div>
         </div>
+        <button onclick="showUpdateHours()" style="background:rgba(200,146,42,.08);border:.5px solid var(--brass);cursor:pointer;padding:6px 10px;border-radius:8px;color:var(--brass);font-size:11px;font-family:'DM Sans',sans-serif;font-weight:500;letter-spacing:.5px;text-transform:uppercase;transition:all .2s;-webkit-tap-highlight-color:transparent;">⏱ Hours</button>
         <button onclick="showConfig()" id="gear-btn" title="Settings" style="background:rgba(255,255,255,.06);border:.5px solid var(--card-border);cursor:pointer;padding:6px 10px;border-radius:8px;color:var(--text-dim);font-size:11px;font-family:'DM Sans',sans-serif;font-weight:500;letter-spacing:.5px;text-transform:uppercase;transition:all .2s;-webkit-tap-highlight-color:transparent;">Settings</button>
       </div>
     </div>
   </header>
 
   <div class="tabs">
-    <button class="tab active" onclick="switchTab('overview')">Overview</button>
+    <button class="tab active" onclick="switchTab('live')">Electrical</button>
+    <button class="tab" onclick="switchTab('weather')">Weather</button>
+    <button class="tab" onclick="switchTab('cameras')">Cameras</button>
+    <button class="tab" onclick="switchTab('overview')">Maint. Overview</button>
     <button class="tab" onclick="switchTab('log')">Log</button>
     <button class="tab" onclick="switchTab('intervals')">Intervals</button>
-    <button class="tab" onclick="switchTab('live')">Live</button>
   </div>
 
   <div class="scroll-area">
 
+    <!-- WEATHER -->
+    <div class="view" id="view-weather">
+      <div style="height:12px;"></div>
+      <div class="vrm-card" style="padding:0;overflow:hidden;position:relative;">
+        <iframe id="windy-frame" src="about:blank"
+          style="width:100%;height:calc(100vh - 148px);min-height:520px;border:none;display:block;"
+          allowfullscreen loading="lazy">
+        </iframe>
+      </div>
+      <div id="gps-status" style="font-size:11px;color:var(--text-dim);text-align:center;padding:6px 0 2px;"></div>
+    </div>
+
     <!-- OVERVIEW -->
-    <div class="view active" id="view-overview">
+    <div class="view" id="view-overview">
       <div style="height:16px;"></div>
 
       <!-- Engine hours row -->
@@ -276,13 +293,10 @@
         <button class="update-hrs-btn" onclick="showUpdateHours()">⏱ Update Engine Hours</button>
       </div>
 
-      <!-- Section toolbar -->
-      <div class="section-toolbar">
-        <div style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-dim);">Service Status</div>
-        <button class="reorder-btn" id="reorder-toggle-btn" onclick="toggleReorderMode()">⠿ Reorder</button>
+      <!-- Reorder toggle + maintenance sections -->
+      <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
+        <button id="reorder-toggle-btn" class="btn-ghost" onclick="toggleReorderMode()" style="font-size:12px;padding:5px 14px;">⠿ Reorder</button>
       </div>
-
-      <!-- Sections container (order is dynamic) -->
       <div id="sections-container"></div>
 
     </div>
@@ -326,7 +340,7 @@
     </div>
 
     <!-- LIVE / VRM -->
-    <div class="view" id="view-live">
+    <div class="view active" id="view-live">
       <div style="height:16px;"></div>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
         <span id="vrm-meas" style="font-size:11px;color:var(--text-dim);"></span>
@@ -335,18 +349,33 @@
       <div id="vrm-status-wrap"></div>
       <!-- main gauge row -->
       <div class="vrm-gauge-row" id="vrm-main-row">
-        <div class="vrm-card">
-          <div id="gc-battery" style="width:100%;height:310px;"></div>
-          <div class="vrm-card-label">Battery Bank Stats</div>
-          <div class="vrm-legend" id="vrm-battery-legend"></div>
+        <!-- col 1: Battery Stats on top, SOC below (2/3) -->
+        <div class="vrm-card" style="display:flex;flex-direction:column;gap:12px;">
+          <div>
+            <div id="gc-battery" style="width:100%;height:280px;"></div>
+            <div class="vrm-card-label">Battery Bank Stats</div>
+            <div class="vrm-legend" id="vrm-battery-legend"></div>
+          </div>
+          <div>
+            <div id="gc-soc" style="width:100%;height:400px;"></div>
+            <div class="vrm-card-label">Battery State of Charge</div>
+          </div>
         </div>
-        <div class="vrm-card">
-          <div id="gc-soc" style="width:100%;height:440px;"></div>
-          <div class="vrm-card-label">Battery State of Charge</div>
-        </div>
-        <div class="vrm-card">
-          <div id="gc-grid" style="width:100%;height:310px;"></div>
-          <div class="vrm-card-label">Grid</div>
+        <!-- col 2: L1 + L2 stacked (1/3) -->
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <div class="vrm-card">
+            <div id="gc-grid" style="width:100%;height:240px;"></div>
+            <div class="vrm-card-label">L1</div>
+          </div>
+          <div class="vrm-card" style="padding:14px 18px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;">
+            <div class="vrm-card-label" style="margin:0;">Shore Current</div>
+            <div id="total-amps-val" style="font-family:'DM Mono',monospace;font-size:36px;font-weight:500;color:#f2b338;line-height:1;">—</div>
+            <div style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;">A</div>
+          </div>
+          <div class="vrm-card">
+            <div id="gc-grid2" style="width:100%;height:240px;"></div>
+            <div class="vrm-card-label">L2</div>
+          </div>
         </div>
       </div>
       <!-- temperature row -->
@@ -359,6 +388,12 @@
       <!-- KPI tiles toggle -->
       <button id="vrm-tiles-btn" onclick="vrmToggleTiles()" style="font-size:11px;padding:5px 14px;border-radius:16px;border:.5px solid var(--card-border);background:transparent;color:var(--text-dim);cursor:pointer;font-family:'DM Sans',sans-serif;margin-bottom:12px;">+ Show tiles</button>
       <div class="kpi-grid" id="vrm-featured" style="display:none;"></div>
+    </div>
+
+    <!-- CAMERAS VIEW -->
+    <div class="view" id="view-cameras">
+      <div style="height:16px;"></div>
+      <div id="cam-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(480px,1fr));gap:16px;"></div>
     </div>
 
   </div><!-- scroll-area -->
@@ -546,7 +581,7 @@
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;padding-top:8px;border-top:.5px solid var(--card-border);">
           <div>
-            <div style="font-size:10px;color:var(--text-dim);font-family:'DM Mono',monospace;letter-spacing:.5px;" id="version-display">VERSION 1.1.0</div>
+            <div style="font-size:10px;color:var(--text-dim);font-family:'DM Mono',monospace;letter-spacing:.5px;" id="version-display">VERSION 3.0.0</div>
             <div style="font-size:11px;color:var(--brass);font-family:'Bebas Neue',sans-serif;letter-spacing:1.5px;margin-top:3px;">by Captain David</div>
             <a href="README.html" target="_blank" style="font-size:10px;color:var(--text-dim);text-decoration:none;letter-spacing:.5px;margin-top:4px;display:inline-block;border-bottom:.5px solid rgba(122,155,176,.3);padding-bottom:1px;">Terms of Use &amp; User Guide ↗</a>
           </div>
@@ -604,7 +639,7 @@ let RAW = [];
 let INTERVALS = [];
 let CURRENT_HRS = {};
 let MANUAL_HRS = {};
-let CONFIG = { boatName: 'Sunset Serenade', vesselId: 'OA 423', theme: 'dark', sectionOrder: ['oil','fluids','components'] };
+let CONFIG = { boatName: 'Sunset Serenade', vesselId: 'QA 423', theme: 'dark', sectionOrder: ['oil','fluids','components'] };
 const SEED_SYSTEMS = [
   {name:'Port Engine', color:'#378add'},
   {name:'Stb Engine',  color:'#2db88a'},
@@ -804,7 +839,7 @@ function recalcHrs() {
 }
 
 // ── CONFIG ──
-const APP_VERSION  = '2.0.0';  // v2: date-based intervals + multiple intervals per component
+const APP_VERSION  = '4.1.0';  // v4.1.0
 const DATA_VERSION = '2';      // bumps when storage schema changes
 
 function setTheme(mode) {
@@ -832,35 +867,9 @@ function refreshSystemDropdowns() {
     iv.innerHTML = opts;
   }
 
-  // Update Hours overlay — build dynamic fields
-  const uhFields = document.getElementById('uh-fields');
-  if (uhFields) {
-    uhFields.innerHTML = SYSTEMS.map(s=>`
-      <div>
-        <label class="field-label" style="color:${s.color};">${s.name}</label>
-        <input id="uh-${s.name.replace(/\s+/g,'-')}" type="number" placeholder="Current hours"
-          class="field-input mono-input" value="${CURRENT_HRS[s.name]||''}">
-      </div>`).join('') +
-      `<p style="font-size:11px;color:var(--text-dim);margin-top:4px;">These override the max hours derived from log entries.</p>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-        <button class="btn-ghost" onclick="hideUpdateHours()">Cancel</button>
-        <button class="btn-primary" onclick="submitUpdateHours()">Update</button>
-      </div>`;
-  }
-
-  // Header chips — only show systems that have engine hours tracked
+  // Header chips cleared — engine hours shown only on Maint. Overview tab
   const hc = document.getElementById('header-chips');
-  if (hc) {
-    const chipSystems = SYSTEMS.filter(s => CURRENT_HRS[s.name] != null && (/ Engine$/i.test(s.name) || /^Generator$/i.test(s.name)));
-    hc.innerHTML = chipSystems.map(s=>`
-      <div class="hr-chip" style="text-align:right;">
-        <div style="display:flex;align-items:center;gap:6px;justify-content:flex-end;margin-bottom:4px;">
-          <span style="width:10px;height:10px;border-radius:50%;background:${s.color};box-shadow:0 0 0 2px rgba(255,255,255,.05);"></span>
-          <span class="label" style="font-size:11px;text-transform:uppercase;letter-spacing:1.3px;color:var(--text);display:block;font-weight:500;">${s.name.replace(' Engine','').replace('Generator','Gen')}</span>
-        </div>
-        <span class="value" id="hc-${s.name.replace(/\s+/g,'-')}" style="font-family:'DM Mono',monospace;font-size:24px;font-weight:500;line-height:1;color:${s.color};">—</span>
-      </div>`).join('');
-  }
+  if (hc) hc.innerHTML = '';
 }
 
 function renderSysTags() {
@@ -985,8 +994,8 @@ function uploadBoatPhoto(file) {
 
 function applyConfig() {
   document.getElementById('vessel-name-el').textContent = CONFIG.boatName || 'Sunset Serenade';
-  document.getElementById('vessel-id-el').textContent   = CONFIG.vesselId  || 'OA 423';
-  document.title = (CONFIG.boatName || 'Sunset Serenade') + ' — Maintenance';
+  document.getElementById('vessel-id-el').textContent   = CONFIG.vesselId  || 'QA 423';
+  document.title = (CONFIG.boatName || 'Sunset Serenade') + ' — QA 423 Dashboard';
   const meta = document.querySelector('meta[name="apple-mobile-web-app-title"]');
   if (meta) meta.content = CONFIG.boatName || 'Sunset Serenade';
   setTheme(CONFIG.theme || 'dark');
@@ -1079,7 +1088,20 @@ function lastSvcAny(sys, comp) {
 
 // ── UPDATE HOURS OVERLAY ──
 function showUpdateHours() {
-  refreshSystemDropdowns(); // rebuilds uh-fields
+  const uhFields = document.getElementById('uh-fields');
+  if (uhFields) {
+    uhFields.innerHTML = SYSTEMS.map(s=>`
+      <div>
+        <label class="field-label" style="color:${s.color||'#888'};">${s.name}</label>
+        <input id="uh-${s.name.replace(/\s+/g,'-')}" type="number" placeholder="Current hours"
+          class="field-input mono-input" value="${CURRENT_HRS[s.name]||''}">
+      </div>`).join('') +
+      `<p style="font-size:11px;color:var(--text-dim);margin-top:4px;">These override the max hours derived from log entries.</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px;">
+        <button class="btn-ghost" onclick="hideUpdateHours()">Cancel</button>
+        <button class="btn-primary" onclick="submitUpdateHours()">Update</button>
+      </div>`;
+  }
   document.getElementById('hrs-overlay').style.display = 'flex';
 }
 function hideUpdateHours() { document.getElementById('hrs-overlay').style.display = 'none'; }
@@ -1422,12 +1444,21 @@ function toggleSection(id) {
 }
 
 function buildOverview() {
+  // Engine hours — always render regardless of log entries
+  const hrsEl = document.getElementById('ov-hrs-row');
+  if (hrsEl) {
+    const hrsSystems = SYSTEMS.filter(s => / Engine$/i.test(s.name) || /^Generator$/i.test(s.name));
+    hrsEl.innerHTML = hrsSystems.map(s => `
+      <div class="hrs-card" style="--sys-color:${s.color||'#888'}">
+        <span class="h-label">${s.name}</span>
+        <div><span class="h-value">${CURRENT_HRS[s.name] ? Number(CURRENT_HRS[s.name]).toLocaleString() : '—'}</span><span class="h-suffix">hrs</span></div>
+      </div>`).join('');
+  }
+
   if (!RAW.length) return;
 
   // Restore saved order
   if (CONFIG.sectionOrder) sectionOrder = CONFIG.sectionOrder;
-
-  // Engine hours display
 
   // Categorize components
   const allComps = [...new Set(RAW.map(r=>r.component))];
@@ -1660,16 +1691,21 @@ function buildIntervals() {
 // ── TABS ──
 function switchTab(name) {
   document.querySelectorAll('.tab').forEach((t,i)=>{
-    t.classList.toggle('active',['overview','log','intervals','live'][i]===name);
+    t.classList.toggle('active',['live','weather','cameras','overview','log','intervals'][i]===name);
   });
   document.querySelectorAll('.view').forEach(v=>{
     v.classList.toggle('active',v.id==='view-'+name);
   });
   if (name === 'live') {
+    camStopAll();
     setTimeout(function() {
-      [_vrmSocChart, _vrmBattChart, _vrmGridChart].forEach(function(c){ c && c.resize(); });
+      [_vrmSocChart, _vrmBattChart, _vrmGridChart, _vrmGrid2Chart].forEach(function(c){ c && c.resize(); });
       Object.values(_vrmTempCharts).forEach(function(t){ t && t.chart && t.chart.resize(); });
     }, 50);
+  } else if (name === 'cameras') {
+    camStartAll();
+  } else {
+    camStopAll();
   }
 }
 
@@ -1706,6 +1742,7 @@ const vrmLC    = s => String(s == null ? '' : s).toLowerCase();
 const vrmList  = d => d == null ? [] : (Array.isArray(d) ? d : [d]);
 const vrmIKey  = r => vrmLC(r.Device) + '#' + (r.instance !== undefined ? r.instance : r.idDeviceType);
 function vrmToNum(r) {
+  if (!r) return NaN;
   if (r.rawValue != null && r.rawValue !== '' && !isNaN(Number(r.rawValue))) return Number(r.rawValue);
   const m = String(r.formattedValue || '').match(/-?\d+(\.\d+)?/);
   return m ? Number(m[0]) : NaN;
@@ -1733,6 +1770,7 @@ function vrmFind(records, m, names) {
   return records.find(r => {
     if (m.desc && vrmLC(r.description) !== vrmLC(m.desc)) return false;
     if (m.device) { const ds = vrmList(m.device).map(vrmLC); if (!ds.some(d => vrmLC(r.Device).includes(d))) return false; }
+    if (m.instance !== undefined && r.instance !== m.instance) return false;
     if (m.customName && !vrmLC(vrmCustOf(r, names)).includes(vrmLC(m.customName))) return false;
     if (m.all && !m.all.every(t => vrmHaystack(r, names).includes(vrmLC(t)))) return false;
     if (m.match && !vrmHaystack(r, names).includes(vrmLC(m.match))) return false;
@@ -1787,6 +1825,7 @@ const VRM_BATT_ZONES = [
 ];
 const VRM_RANGES = {
   battV:[25,26.7], battA:[-150,150], gridV:[100,140], gridA:[0,30],
+  grid2V:[100,140], grid2A:[0,30],
 };
 const VRM_TEMP_NAMES = ['Fridge','Kitchen','VicRoom','Engine Room'];
 const VRM_TEMP_IDS  = ['fridge','kitchen','vicroom','engroom'];
@@ -1815,7 +1854,7 @@ var _vrmSocChart=null,_vrmSocReady=false,_vrmSocVal=0,_vrmSocState='',_vrmSocTTG
     function ptrPts(ang){return[pt(outerR,ang),pt(outerR,ang+Math.PI*0.03),pt(ptrInner,ang)];}
     var imgStyle={image:VRM_PANEL,x:cx-outerR,y:cy-outerR,width:outerR*2,height:outerR*2};
     return{type:'group',children:[
-      {type:'image',style:imgStyle,clipPath:{type:'sector',shape:{cx:cx,cy:cy,r:outerR,r0:innerR,startAngle:0,endAngle:-end,transition:'endAngle',enterFrom:{endAngle:0}}}},
+      {type:'image',style:imgStyle,clipPath:{type:'sector',shape:{cx:cx,cy:cy,r:outerR,r0:innerR,startAngle:0,endAngle:end,transition:'endAngle',enterFrom:{endAngle:0}}}},
       {type:'image',style:imgStyle,clipPath:{type:'polygon',shape:{points:ptrPts(end)},extra:{end:end,transition:'end',enterFrom:{end:0}},during:function(d){d.setShape('points',ptrPts(d.getExtra('end')));}}},
       {type:'circle',shape:{cx:cx,cy:cy,r:insideR},style:{fill:'#fff',shadowBlur:25,shadowColor:'rgba(76,107,167,0.4)'}},
       {type:'text',extra:{val:soc,transition:'val',enterFrom:{val:0}},style:{text:gtxt(soc),fontSize:50,fontWeight:700,x:cx,y:cy-26,fill:'rgb(0,50,190)',align:'center',verticalAlign:'middle',enterFrom:{opacity:0}},during:function(d){d.setStyle('text',gtxt(d.getExtra('val')));}},
@@ -1839,6 +1878,7 @@ function vrmSetSoc(soc,state,ttg){
 // Battery & Grid dual-ring gauges
 var _vrmBattChart=window.echarts?echarts.init(document.getElementById('gc-battery')):null;
 var _vrmGridChart=window.echarts?echarts.init(document.getElementById('gc-grid')):null;
+var _vrmGrid2Chart=window.echarts?echarts.init(document.getElementById('gc-grid2')):null;
 function _vrmRing(spec,radius,offY){return{type:'gauge',radius:radius,startAngle:220,endAngle:-40,min:spec.min,max:spec.max,splitNumber:4,progress:{show:true,width:12,roundCap:true,itemStyle:{color:spec.color}},axisLine:{lineStyle:{width:12,color:[[1,'rgba(255,255,255,0.10)']]}},axisTick:{show:false},splitLine:{show:false},axisLabel:{show:false},pointer:{show:false},anchor:{show:false},title:{show:false},detail:{valueAnimation:true,offsetCenter:[0,offY],formatter:function(v){return isFinite(v)?v.toFixed(spec.dp)+' '+spec.unit:'–';},fontSize:22,fontWeight:700,color:spec.color},data:[{value:spec.value}]};}
 function _vrmZoneRing(spec){return{type:'gauge',radius:'100%',startAngle:220,endAngle:-40,min:spec.min,max:spec.max,splitNumber:Math.max(2,Math.round((spec.max-spec.min)*2)),axisLine:{lineStyle:{width:14,color:vrmZoneStops(spec.zones,spec.min,spec.max)}},progress:{show:false},pointer:{show:true,icon:'rect',width:6,length:'22%',offsetCenter:[0,'-86%'],itemStyle:{color:'#fff',borderColor:'#0f1216',borderWidth:1.5}},anchor:{show:false},axisTick:{show:true,splitNumber:5,distance:2,length:4,lineStyle:{color:'rgba(255,255,255,0.25)',width:1}},splitLine:{show:true,distance:2,length:14,lineStyle:{color:'rgba(255,255,255,0.30)',width:2}},axisLabel:{show:true,distance:22,color:'#8b95a4',fontSize:10,formatter:function(v){if(v<=spec.min)return spec.min+'-';if(v>=spec.max)return spec.max+'+';return(Math.abs(v-Math.round(v))<0.01)?v.toFixed(0):'';}} ,title:{show:false},detail:{valueAnimation:true,offsetCenter:[0,'-16%'],formatter:function(v){return isFinite(v)?v.toFixed(spec.dp)+' '+spec.unit:'–';},fontSize:22,fontWeight:700,color:'#e6e9ee'},data:[{value:spec.value}]};}
 function _vrmAmpRing(spec){return{type:'gauge',radius:'62%',startAngle:220,endAngle:-40,min:spec.min,max:spec.max,splitNumber:2,axisLine:{lineStyle:{width:10,color:[[1,'rgba(242,179,56,0.22)']]}},progress:{show:false},pointer:{show:true,icon:'rect',width:4,length:'20%',offsetCenter:[0,'-84%'],itemStyle:{color:'#f2b338',borderColor:'#0f1216',borderWidth:1}},anchor:{show:false},axisTick:{show:false},splitLine:{show:true,distance:2,length:10,lineStyle:{color:'rgba(255,255,255,0.30)',width:1.5}},axisLabel:{show:true,distance:-2,color:'#8b95a4',fontSize:9,formatter:function(v){return Math.round(v);}},title:{show:false},detail:{valueAnimation:true,offsetCenter:[0,'24%'],formatter:function(v){return isFinite(v)?v.toFixed(spec.dp)+' '+spec.unit:'–';},fontSize:22,fontWeight:700,color:spec.color},data:[{value:spec.value}]};}
@@ -1854,7 +1894,8 @@ if(window.echarts){
   vrmBuildBattLegend();
   vrmSetDual(_vrmBattChart,{value:NaN,min:VRM_RANGES.battV[0],max:VRM_RANGES.battV[1],unit:'V',dp:2,zones:VRM_BATT_ZONES},{value:NaN,min:VRM_RANGES.battA[0],max:VRM_RANGES.battA[1],unit:'A',color:'#f2b338',dp:2,bipolar:true});
   vrmSetDual(_vrmGridChart,{value:NaN,min:VRM_RANGES.gridV[0],max:VRM_RANGES.gridV[1],unit:'V',color:'#36c2a4',dp:1},{value:NaN,min:VRM_RANGES.gridA[0],max:VRM_RANGES.gridA[1],unit:'A',color:'#f2b338',dp:1});
-  window.addEventListener('resize',function(){_vrmBattChart&&_vrmBattChart.resize();_vrmGridChart&&_vrmGridChart.resize();});
+  vrmSetDual(_vrmGrid2Chart,{value:NaN,min:VRM_RANGES.grid2V[0],max:VRM_RANGES.grid2V[1],unit:'V',color:'#36c2a4',dp:1},{value:NaN,min:VRM_RANGES.grid2A[0],max:VRM_RANGES.grid2A[1],unit:'A',color:'#f2b338',dp:1});
+  window.addEventListener('resize',function(){_vrmBattChart&&_vrmBattChart.resize();_vrmGridChart&&_vrmGridChart.resize();_vrmGrid2Chart&&_vrmGrid2Chart.resize();});
 }
 
 // Temperature gauges
@@ -1869,6 +1910,11 @@ function _vrmTempSeries(f){return{type:'gauge',radius:'92%',startAngle:210,endAn
     _vrmTempCharts[nm]={chart:c,hum:document.getElementById('vrm-rh-'+VRM_TEMP_IDS[i])};
   });
   window.addEventListener('resize',function(){Object.values(_vrmTempCharts).forEach(function(t){t&&t.chart&&t.chart.resize();});});
+  // live tab is the default — resize all charts once layout is painted
+  setTimeout(function(){
+    [_vrmSocChart,_vrmBattChart,_vrmGridChart,_vrmGrid2Chart].forEach(function(c){c&&c.resize();});
+    Object.values(_vrmTempCharts).forEach(function(t){t&&t.chart&&t.chart.resize();});
+  }, 100);
 })();
 function vrmSetTemp(nm,f,humTxt){var t=_vrmTempCharts[nm];if(!t)return;t.chart.setOption({series:[_vrmTempSeries(f)]});if(t.hum)t.hum.textContent=humTxt?'RH '+humTxt:'';}
 
@@ -2031,6 +2077,32 @@ function vrmToggleTiles() {
   if (btn) btn.textContent = vrmTilesShown ? '− Hide tiles' : '+ Show tiles';
 }
 
+// ── WINDY / GPS ──
+const LS_GPS = 'ss_gps';
+let _gpsLat = null, _gpsLon = null;
+
+function windyUrl(lat, lon) {
+  return 'https://embed.windy.com/embed2.html?lat='+lat+'&lon='+lon
+    +'&detailLat='+lat+'&detailLon='+lon
+    +'&zoom=10&level=surface&overlay=wind&product=ecmwf'
+    +'&menu=&message=&marker=true&calendar=now&pressure='
+    +'&type=map&location=coordinates&detail='
+    +'&metricWind=kt&metricTemp=%C2%B0F&radarRange=-1';
+}
+
+function updateWindy(lat, lon) {
+  const frame = document.getElementById('windy-frame');
+  if (!frame) return;
+  const moved = !_gpsLat || Math.abs(lat - _gpsLat) > 0.005 || Math.abs(lon - _gpsLon) > 0.005;
+  if (frame.src === 'about:blank' || moved) {
+    frame.src = windyUrl(lat.toFixed(5), lon.toFixed(5));
+    localStorage.setItem(LS_GPS, JSON.stringify({lat, lon}));
+  }
+  _gpsLat = lat; _gpsLon = lon;
+  const st = document.getElementById('gps-status');
+  if (st) st.textContent = lat.toFixed(4) + '°  ' + lon.toFixed(4) + '°';
+}
+
 function vrmRender(records) {
   const el = document.getElementById('vrm-featured');
   if (!el) return;
@@ -2045,9 +2117,23 @@ function vrmRender(records) {
   const bV=vrmFind(records,{desc:'Voltage',device:'Battery Monitor'},{});
   const bI=vrmFind(records,{desc:'Current',device:'Battery Monitor'},{});
   vrmSetDual(_vrmBattChart,{value:vrmToNum(bV),min:VRM_RANGES.battV[0],max:VRM_RANGES.battV[1],unit:'V',dp:2,zones:VRM_BATT_ZONES},{value:vrmToNum(bI),min:VRM_RANGES.battA[0],max:VRM_RANGES.battA[1],unit:'A',color:'#f2b338',dp:2,bipolar:true});
-  const gV=vrmFind(records,{desc:'Input voltage phase 1',device:'VE.Bus'},{});
-  const gI=vrmFind(records,{desc:'Input current phase 1',device:'VE.Bus'},{});
+  const gV=vrmFind(records,{desc:'Input voltage phase 1',device:'VE.Bus System',instance:288},{});
+  const gI=vrmFind(records,{desc:'Input current phase 1',device:'VE.Bus System',instance:288},{});
   vrmSetDual(_vrmGridChart,{value:vrmToNum(gV),min:VRM_RANGES.gridV[0],max:VRM_RANGES.gridV[1],unit:'V',color:'#36c2a4',dp:1},{value:vrmToNum(gI),min:VRM_RANGES.gridA[0],max:VRM_RANGES.gridA[1],unit:'A',color:'#f2b338',dp:1});
+  const g2V=vrmFind(records,{desc:'Input voltage phase 1',device:'VE.Bus System',instance:276},{});
+  const g2I=vrmFind(records,{desc:'Input current phase 1',device:'VE.Bus System',instance:276},{});
+  vrmSetDual(_vrmGrid2Chart,{value:vrmToNum(g2V),min:VRM_RANGES.grid2V[0],max:VRM_RANGES.grid2V[1],unit:'V',color:'#36c2a4',dp:1},{value:vrmToNum(g2I),min:VRM_RANGES.grid2A[0],max:VRM_RANGES.grid2A[1],unit:'A',color:'#f2b338',dp:1});
+  const totalAmpsEl = document.getElementById('total-amps-val');
+  if (totalAmpsEl) {
+    const a1 = vrmToNum(gI), a2 = vrmToNum(g2I);
+    const total = (!isNaN(a1) && !isNaN(a2)) ? (a1 + a2).toFixed(1) : (!isNaN(a1) ? a1.toFixed(1) : (!isNaN(a2) ? a2.toFixed(1) : '—'));
+    totalAmpsEl.textContent = total;
+  }
+  // GPS → Windy
+  const latRec = vrmFind(records,{desc:'Latitude'},{}) || vrmFind(records,{desc:'GPS Latitude'},{}) || vrmFind(records,{desc:'Position latitude'},{});
+  const lonRec = vrmFind(records,{desc:'Longitude'},{}) || vrmFind(records,{desc:'GPS Longitude'},{}) || vrmFind(records,{desc:'Position longitude'},{});
+  const gLat = vrmToNum(latRec), gLon = vrmToNum(lonRec);
+  if (!isNaN(gLat) && !isNaN(gLon)) updateWindy(gLat, gLon);
   // Temp gauges
   VRM_TEMP_NAMES.forEach(function(nm){
     var tRec=vrmFind(records,{desc:'Temperature',customName:nm},names);
@@ -2108,6 +2194,111 @@ function vrmInit() {
   setInterval(vrmFetchWeather, VRM_WEATHER.refreshMs);
 }
 
+// ── CAMERAS ──
+const GO2RTC = 'http://localhost:1984';
+const CAM_LIST = [
+  { name: 'Main Camera', stream: 'camera1', ip: '192.168.0.111' }
+];
+let _camPCs = {};
+
+function camBuildUI() {
+  const grid = document.getElementById('cam-grid');
+  if (!grid || grid.children.length) return;
+  grid.innerHTML = CAM_LIST.map(c => `
+    <div class="vrm-card" style="padding:0;overflow:hidden;border-radius:var(--radius);">
+      <div style="position:relative;background:#000;aspect-ratio:16/9;">
+        <video id="cam-vid-${c.stream}" autoplay muted playsinline
+          style="width:100%;height:100%;object-fit:contain;display:block;"></video>
+        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;">
+          <span id="cam-overlay-${c.stream}"
+            style="font-size:13px;color:rgba(255,255,255,.5);font-family:'DM Mono',monospace;"></span>
+        </div>
+        <div style="position:absolute;top:10px;left:12px;">
+          <span id="cam-badge-${c.stream}"
+            style="font-size:10px;font-family:'DM Mono',monospace;letter-spacing:.5px;padding:3px 8px;
+                   border-radius:10px;background:rgba(0,0,0,.55);backdrop-filter:blur(4px);">
+            Offline
+          </span>
+        </div>
+        <div style="position:absolute;top:10px;right:12px;">
+          <button onclick="camStart(CAM_LIST.find(x=>x.stream==='${c.stream}'))"
+            style="font-size:10px;padding:3px 8px;border-radius:10px;border:.5px solid rgba(255,255,255,.2);
+                   background:rgba(0,0,0,.55);backdrop-filter:blur(4px);color:rgba(255,255,255,.7);
+                   cursor:pointer;font-family:'DM Sans',sans-serif;">↺ Reconnect</button>
+        </div>
+      </div>
+      <div style="padding:10px 14px;display:flex;justify-content:space-between;align-items:center;">
+        <span class="vrm-card-label" style="margin:0;">${c.name}</span>
+        <span style="font-size:10px;color:var(--text-dim);font-family:'DM Mono',monospace;">${c.ip}</span>
+      </div>
+    </div>`).join('');
+}
+
+async function camStart(cam) {
+  const vid   = document.getElementById('cam-vid-'     + cam.stream);
+  const badge = document.getElementById('cam-badge-'   + cam.stream);
+  const over  = document.getElementById('cam-overlay-' + cam.stream);
+
+  function setBadge(txt, color) { if (badge) { badge.textContent = txt; badge.style.color = color; } }
+  function setOver(txt)         { if (over)  over.textContent = txt; }
+
+  if (_camPCs[cam.stream]) { try { _camPCs[cam.stream].close(); } catch(e){} delete _camPCs[cam.stream]; }
+
+  setBadge('Connecting…', 'rgba(255,255,255,.6)');
+  setOver('');
+
+  try {
+    const pc = new RTCPeerConnection(null);
+    _camPCs[cam.stream] = pc;
+
+    pc.addTransceiver('video', { direction: 'recvonly' });
+    pc.addTransceiver('audio', { direction: 'recvonly' });
+
+    pc.ontrack = ev => {
+      if (vid) { vid.srcObject = ev.streams[0]; }
+      setBadge('● Live', '#36c2a4');
+      setOver('');
+    };
+
+    pc.oniceconnectionstatechange = () => {
+      if (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected') {
+        setBadge('Offline', 'var(--danger)');
+        setOver('Stream lost');
+      }
+    };
+
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+
+    const res = await fetch(`${GO2RTC}/api/webrtc?src=${cam.stream}`, {
+      method: 'POST',
+      body: offer.sdp,
+      headers: { 'Content-Type': 'application/sdp' }
+    });
+    if (!res.ok) throw new Error('go2rtc responded ' + res.status);
+
+    const sdp = await res.text();
+    await pc.setRemoteDescription({ type: 'answer', sdp });
+
+  } catch(e) {
+    setBadge('Offline', 'var(--danger)');
+    setOver('go2rtc not running');
+    if (vid) vid.srcObject = null;
+    delete _camPCs[cam.stream];
+  }
+}
+
+function camStop(stream) {
+  if (_camPCs[stream]) { try { _camPCs[stream].close(); } catch(e){} delete _camPCs[stream]; }
+  const vid   = document.getElementById('cam-vid-'     + stream);
+  const badge = document.getElementById('cam-badge-'   + stream);
+  if (vid)   vid.srcObject = null;
+  if (badge) { badge.textContent = 'Offline'; badge.style.color = 'rgba(255,255,255,.4)'; }
+}
+
+function camStartAll() { camBuildUI(); CAM_LIST.forEach(c => camStart(c)); }
+function camStopAll()  { CAM_LIST.forEach(c => camStop(c.stream)); }
+
 // ── INIT ──
 loadAll();
 applyConfig();
@@ -2118,6 +2309,11 @@ recalcHrs();
 refreshAll();
 updateClock();
 setInterval(updateClock, 1000);
+// Seed Windy from cached GPS so map is ready before first VRM poll
+(function(){
+  var cached = localStorage.getItem(LS_GPS);
+  if (cached) { try { var p=JSON.parse(cached); if(p.lat&&p.lon){ var f=document.getElementById('windy-frame'); if(f) f.src=windyUrl(p.lat.toFixed(5),p.lon.toFixed(5)); _gpsLat=p.lat; _gpsLon=p.lon; var st=document.getElementById('gps-status'); if(st) st.textContent=p.lat.toFixed(4)+'°  '+p.lon.toFixed(4)+'°'; } } catch(e){} }
+})();
 vrmInit();
 </script>
 </body>
