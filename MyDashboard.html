@@ -1842,7 +1842,7 @@ function vrmZoneStops(zones,min,max){
 }
 
 // SOC hero gauge (image-reveal + custom graphic)
-var _vrmSocChart=null,_vrmSocReady=false,_vrmSocVal=0,_vrmSocState='',_vrmSocTTG='';
+var _vrmSocChart=null,_vrmSocReady=false,_vrmSocVal=0,_vrmSocState='',_vrmSocTTG='',_vrmSocVolt=NaN;
 (function(){
   if(!window.echarts)return;
   var outerR=200,innerR=170,ptrInner=40,insideR=140,MAX=100;
@@ -1854,12 +1854,16 @@ var _vrmSocChart=null,_vrmSocReady=false,_vrmSocVal=0,_vrmSocState='',_vrmSocTTG
     function pt(r,rad){return[Math.cos(rad)*r+cx,-Math.sin(rad)*r+cy];}
     function ptrPts(ang){return[pt(outerR,ang),pt(outerR,ang+Math.PI*0.03),pt(ptrInner,ang)];}
     var imgStyle={image:VRM_PANEL,x:cx-outerR,y:cy-outerR,width:outerR*2,height:outerR*2};
+    var v=_vrmSocVolt;
+    var pctColor  = isFinite(v)&&v<25.0 ? '#c03018' : isFinite(v)&&v<25.5 ? '#b07010' : 'rgb(0,50,190)';
+    var stColor   = isFinite(v)&&v<25.0 ? 'rgb(160,60,40)' : isFinite(v)&&v<25.5 ? 'rgb(150,100,20)' : 'rgb(90,108,150)';
+    var shadColor = isFinite(v)&&v<25.0 ? 'rgba(224,92,74,0.45)' : isFinite(v)&&v<25.5 ? 'rgba(200,146,42,0.45)' : 'rgba(76,107,167,0.4)';
     return{type:'group',children:[
       {type:'image',style:imgStyle,clipPath:{type:'sector',shape:{cx:cx,cy:cy,r:outerR,r0:innerR,startAngle:0,endAngle:end,transition:'endAngle',enterFrom:{endAngle:0}}}},
       {type:'image',style:imgStyle,clipPath:{type:'polygon',shape:{points:ptrPts(end)},extra:{end:end,transition:'end',enterFrom:{end:0}},during:function(d){d.setShape('points',ptrPts(d.getExtra('end')));}}},
-      {type:'circle',shape:{cx:cx,cy:cy,r:insideR},style:{fill:'#fff',shadowBlur:25,shadowColor:'rgba(76,107,167,0.4)'}},
-      {type:'text',extra:{val:soc,transition:'val',enterFrom:{val:0}},style:{text:gtxt(soc),fontSize:50,fontWeight:700,x:cx,y:cy-26,fill:'rgb(0,50,190)',align:'center',verticalAlign:'middle',enterFrom:{opacity:0}},during:function(d){d.setStyle('text',gtxt(d.getExtra('val')));}},
-      {type:'text',style:{text:(_vrmSocState||'').toUpperCase(),fontSize:22,fontWeight:700,x:cx,y:cy+22,fill:'rgb(90,108,150)',align:'center',verticalAlign:'middle'}},
+      {type:'circle',shape:{cx:cx,cy:cy,r:insideR},style:{fill:'#fff',shadowBlur:25,shadowColor:shadColor}},
+      {type:'text',extra:{val:soc,transition:'val',enterFrom:{val:0}},style:{text:gtxt(soc),fontSize:50,fontWeight:700,x:cx,y:cy-26,fill:pctColor,align:'center',verticalAlign:'middle',enterFrom:{opacity:0}},during:function(d){d.setStyle('text',gtxt(d.getExtra('val')));}},
+      {type:'text',style:{text:(_vrmSocState||'').toUpperCase(),fontSize:22,fontWeight:700,x:cx,y:cy+22,fill:stColor,align:'center',verticalAlign:'middle'}},
       {type:'text',style:{text:_vrmSocTTG?'TIME TO GO '+_vrmSocTTG:'',fontSize:14,fontWeight:600,x:cx,y:cy+54,fill:'rgb(120,135,165)',align:'center',verticalAlign:'middle'}}
     ]};
   }
@@ -1869,9 +1873,10 @@ var _vrmSocChart=null,_vrmSocReady=false,_vrmSocVal=0,_vrmSocState='',_vrmSocTTG
   _vrmSocReady=true;
   window.addEventListener('resize',function(){_vrmSocChart&&_vrmSocChart.resize();});
 })();
-function vrmSetSoc(soc,state,ttg){
+function vrmSetSoc(soc,state,ttg,volt){
   if(state!==undefined)_vrmSocState=state||'';
   if(ttg!==undefined)_vrmSocTTG=ttg||'';
+  if(volt!==undefined)_vrmSocVolt=isFinite(volt)?volt:NaN;
   if(isFinite(soc))_vrmSocVal=Math.max(0,Math.min(100,soc));
   if(_vrmSocReady)_vrmSocChart.setOption({dataset:{source:[[1,_vrmSocVal]]}});
 }
@@ -2113,9 +2118,8 @@ function vrmRender(records) {
   const invRec = vrmFind(records,{desc:'VE.Bus state',device:'VE.Bus'},{});
   const ttgRec = vrmFind(records,{desc:'Time to go',device:'Battery Monitor'},{});
   const ttgTxt = ttgRec&&isFinite(vrmToNum(ttgRec))?Math.round(vrmToNum(ttgRec))+' h':(ttgRec?vrmFmt(ttgRec):'');
-  vrmSetSoc(socRec?vrmToNum(socRec):NaN,invRec?vrmFmt(invRec):'',ttgTxt);
-  // Battery / Grid gauges
   const bV=vrmFind(records,{desc:'Voltage',device:'Battery Monitor'},{});
+  vrmSetSoc(socRec?vrmToNum(socRec):NaN,invRec?vrmFmt(invRec):'',ttgTxt,vrmToNum(bV));
   const bI=vrmFind(records,{desc:'Current',device:'Battery Monitor'},{});
   vrmSetDual(_vrmBattChart,{value:vrmToNum(bV),min:VRM_RANGES.battV[0],max:VRM_RANGES.battV[1],unit:'V',dp:2,zones:VRM_BATT_ZONES},{value:vrmToNum(bI),min:VRM_RANGES.battA[0],max:VRM_RANGES.battA[1],unit:'A',color:'#f2b338',dp:2,bipolar:true});
   const gV=vrmFind(records,{desc:'Input voltage phase 1',device:'VE.Bus System',instance:288},{});
