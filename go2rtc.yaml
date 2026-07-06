@@ -6,9 +6,9 @@ api:
   origin: '*'
 
 webrtc:
-  listen: 192.168.0.102:8555/udp
+  listen: 192.168.0.50:8555/udp
   candidates:
-    - 192.168.0.102:8555
+    - 192.168.0.50:8555
   filters:
     networks:
       - udp4
