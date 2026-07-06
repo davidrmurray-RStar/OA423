@@ -1816,16 +1816,12 @@ function vrmWeatherCard(label) {
 
 const VRM_PANEL = '/assets/custom-gauge-panel.png';
 const VRM_BATT_ZONES = [
-  { upTo: 25.0, color: '#e0556b', label: 'low'  },
-  { upTo: 26.0, color: '#f0a23a', label: ''     },
-  { upTo: 26.3, color: '#e8c83a', label: '25%'  },
-  { upTo: 26.4, color: '#bcd14a', label: '50%'  },
-  { upTo: 26.6, color: '#86cc4e', label: ''     },
-  { upTo: 26.7, color: '#52c57a', label: '75%'  },
-  { upTo: Infinity, color: '#36c2a4', label: '100%' },
+  { upTo: 24.0, color: '#e0556b', label: 'low (<24V)'  },
+  { upTo: 25.0, color: '#f0a23a', label: 'warn (24–25V)' },
+  { upTo: Infinity, color: '#36c2a4', label: 'good (>25V)' },
 ];
 const VRM_RANGES = {
-  battV:[25,26.7], battA:[-150,150], gridV:[100,140], gridA:[0,30],
+  battV:[23.0,27.2], battA:[-150,150], gridV:[100,140], gridA:[0,30],
   grid2V:[100,140], grid2A:[0,30],
 };
 const VRM_TEMP_NAMES = ['Fridge','Kitchen','VicRoom','Engine Room'];
