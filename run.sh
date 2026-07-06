@@ -12,7 +12,7 @@ cp -r ~/storage/shared/OA423/assets        ~/assets                        2>/de
 if pgrep -f go2rtc > /dev/null 2>&1; then
   echo "go2rtc already running"
 else
-  nohup ~/go2rtc -config ~/go2rtc.yaml > ~/go2rtc.log 2>&1 & disown
+  setsid ~/go2rtc -config ~/go2rtc.yaml >> ~/go2rtc.log 2>&1 </dev/null &
   echo "go2rtc started"
 fi
 
