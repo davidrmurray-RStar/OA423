@@ -1846,7 +1846,7 @@ function vrmZoneStops(zones,min,max){
 }
 
 // SOC hero gauge (image-reveal + custom graphic)
-var _vrmSocChart=null,_vrmSocReady=false,_vrmSocVal=0,_vrmSocState='',_vrmSocTTG='',_vrmSocVolt=NaN;
+var _vrmSocChart=null,_vrmSocReady=false,_vrmSocVal=0,_vrmSocState='',_vrmSocState2='',_vrmSocTTG='',_vrmSocVolt=NaN;
 (function(){
   if(!window.echarts)return;
   var outerR=200,innerR=170,ptrInner=40,insideR=140,MAX=100;
@@ -1867,8 +1867,13 @@ var _vrmSocChart=null,_vrmSocReady=false,_vrmSocVal=0,_vrmSocState='',_vrmSocTTG
       {type:'image',style:imgStyle,clipPath:{type:'polygon',shape:{points:ptrPts(end)},extra:{end:end,transition:'end',enterFrom:{end:0}},during:function(d){d.setShape('points',ptrPts(d.getExtra('end')));}}},
       {type:'circle',shape:{cx:cx,cy:cy,r:insideR},style:{fill:'#fff',shadowBlur:25,shadowColor:shadColor}},
       {type:'text',extra:{val:soc,transition:'val',enterFrom:{val:0}},style:{text:gtxt(soc),fontSize:50,fontWeight:700,x:cx,y:cy-26,fill:pctColor,align:'center',verticalAlign:'middle',enterFrom:{opacity:0}},during:function(d){d.setStyle('text',gtxt(d.getExtra('val')));}},
-      {type:'text',style:{text:(_vrmSocState||'').toUpperCase(),fontSize:22,fontWeight:700,x:cx,y:cy+22,fill:stColor,align:'center',verticalAlign:'middle'}},
-      {type:'text',style:{text:_vrmSocTTG?'TIME TO GO '+_vrmSocTTG:'',fontSize:14,fontWeight:600,x:cx,y:cy+54,fill:'rgb(120,135,165)',align:'center',verticalAlign:'middle'}}
+      _vrmSocState2
+        ? {type:'group',children:[
+            {type:'text',style:{text:'#1 '+(_vrmSocState||'–').toUpperCase(),fontSize:15,fontWeight:700,x:cx,y:cy+12,fill:stColor,align:'center',verticalAlign:'middle'}},
+            {type:'text',style:{text:'#2 '+(_vrmSocState2||'–').toUpperCase(),fontSize:15,fontWeight:700,x:cx,y:cy+32,fill:stColor,align:'center',verticalAlign:'middle'}}
+          ]}
+        : {type:'text',style:{text:(_vrmSocState||'').toUpperCase(),fontSize:22,fontWeight:700,x:cx,y:cy+22,fill:stColor,align:'center',verticalAlign:'middle'}},
+      {type:'text',style:{text:_vrmSocTTG?'TIME TO GO '+_vrmSocTTG:'',fontSize:14,fontWeight:600,x:cx,y:cy+56,fill:'rgb(120,135,165)',align:'center',verticalAlign:'middle'}}
     ]};
   }
   var el=document.getElementById('gc-soc');if(!el)return;
@@ -1877,8 +1882,9 @@ var _vrmSocChart=null,_vrmSocReady=false,_vrmSocVal=0,_vrmSocState='',_vrmSocTTG
   _vrmSocReady=true;
   window.addEventListener('resize',function(){_vrmSocChart&&_vrmSocChart.resize();});
 })();
-function vrmSetSoc(soc,state,ttg,volt){
+function vrmSetSoc(soc,state,ttg,volt,state2){
   if(state!==undefined)_vrmSocState=state||'';
+  if(state2!==undefined)_vrmSocState2=state2||'';
   if(ttg!==undefined)_vrmSocTTG=ttg||'';
   if(volt!==undefined)_vrmSocVolt=isFinite(volt)?volt:NaN;
   if(isFinite(soc))_vrmSocVal=Math.max(0,Math.min(100,soc));
@@ -2122,11 +2128,13 @@ function vrmRender(records) {
   // (prevents picking up MPPT/inverter internal meters over the main shunt)
   const socRec = vrmFind(records,{desc:'State of charge',device:'Battery Monitor'},{});
   const shuntInst = socRec && socRec.instance !== undefined ? socRec.instance : undefined;
-  const invRec = vrmFind(records,{desc:'VE.Bus state',device:'VE.Bus'},{});
+  const invRecs = records.filter(r=>vrmLC(r.description)===vrmLC('VE.Bus state')&&vrmLC(r.Device||'').includes('ve.bus')).sort((a,b)=>(a.instance||0)-(b.instance||0));
+  const invState1 = invRecs[0] ? vrmFmt(invRecs[0]) : '';
+  const invState2 = invRecs[1] ? vrmFmt(invRecs[1]) : '';
   const ttgRec = vrmFind(records,{desc:'Time to go',device:'Battery Monitor',instance:shuntInst},{});
   const ttgTxt = ttgRec&&isFinite(vrmToNum(ttgRec))?Math.round(vrmToNum(ttgRec))+' h':(ttgRec?vrmFmt(ttgRec):'');
   const bV=vrmFind(records,{desc:'Voltage',device:'Battery Monitor',instance:shuntInst},{});
-  vrmSetSoc(socRec?vrmToNum(socRec):NaN,invRec?vrmFmt(invRec):'',ttgTxt,vrmToNum(bV));
+  vrmSetSoc(socRec?vrmToNum(socRec):NaN,invState1,ttgTxt,vrmToNum(bV),invState2);
   const bI=vrmFind(records,{desc:'Current',device:'Battery Monitor',instance:shuntInst},{});
   vrmSetDual(_vrmBattChart,{value:vrmToNum(bV),min:VRM_RANGES.battV[0],max:VRM_RANGES.battV[1],unit:'V',dp:2,zones:VRM_BATT_ZONES},{value:vrmToNum(bI),min:VRM_RANGES.battA[0],max:VRM_RANGES.battA[1],unit:'A',color:'#f2b338',dp:2,bipolar:true});
   const gV=vrmFind(records,{desc:'Input voltage phase 1',device:'VE.Bus System',instance:288},{});
