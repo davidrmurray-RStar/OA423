@@ -345,7 +345,10 @@
       <div style="height:16px;"></div>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
         <span id="vrm-meas" style="font-size:11px;color:var(--text-dim);"></span>
-        <span id="vrm-updated" style="font-size:10px;color:var(--text-dim);font-family:'DM Mono',monospace;"></span>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span id="vrm-updated" style="font-size:10px;color:var(--text-dim);font-family:'DM Mono',monospace;"></span>
+          <button id="vrm-refresh-btn" onclick="vrmForceRefresh()" style="font-size:11px;padding:4px 10px;border-radius:8px;border:.5px solid var(--card-border);background:transparent;color:var(--text-dim);cursor:pointer;font-family:'DM Sans',sans-serif;-webkit-tap-highlight-color:transparent;">⟳ Refresh</button>
+        </div>
       </div>
       <div id="vrm-status-wrap"></div>
       <!-- main gauge row -->
@@ -848,7 +851,7 @@ function recalcHrs() {
 }
 
 // ── CONFIG ──
-const APP_VERSION  = '5.0.1';  // v5.0.1
+const APP_VERSION  = '5.1.0';  // v5.1.0
 const DATA_VERSION = '2';      // bumps when storage schema changes
 
 function setTheme(mode) {
@@ -2134,20 +2137,24 @@ function vrmRender(records) {
   const ttgRec = vrmFind(records,{desc:'Time to go',device:'Battery Monitor',instance:shuntInst},{});
   const ttgTxt = ttgRec&&isFinite(vrmToNum(ttgRec))?Math.round(vrmToNum(ttgRec))+' h':(ttgRec?vrmFmt(ttgRec):'');
   const bV=vrmFind(records,{desc:'Voltage',device:'Battery Monitor',instance:shuntInst},{});
-  vrmSetSoc(socRec?vrmToNum(socRec):NaN,invState1,ttgTxt,vrmToNum(bV),invState2);
-  const bI=vrmFind(records,{desc:'Current',device:'Battery Monitor',instance:shuntInst},{});
-  vrmSetDual(_vrmBattChart,{value:vrmToNum(bV),min:VRM_RANGES.battV[0],max:VRM_RANGES.battV[1],unit:'V',dp:2,zones:VRM_BATT_ZONES},{value:vrmToNum(bI),min:VRM_RANGES.battA[0],max:VRM_RANGES.battA[1],unit:'A',color:'#f2b338',dp:2,bipolar:true});
+  if (!_mqttConnected) {
+    vrmSetSoc(socRec?vrmToNum(socRec):NaN,invState1,ttgTxt,vrmToNum(bV),invState2);
+    const bI=vrmFind(records,{desc:'Current',device:'Battery Monitor',instance:shuntInst},{});
+    vrmSetDual(_vrmBattChart,{value:vrmToNum(bV),min:VRM_RANGES.battV[0],max:VRM_RANGES.battV[1],unit:'V',dp:2,zones:VRM_BATT_ZONES},{value:vrmToNum(bI),min:VRM_RANGES.battA[0],max:VRM_RANGES.battA[1],unit:'A',color:'#f2b338',dp:2,bipolar:true});
+  }
   const gV=vrmFind(records,{desc:'Input voltage phase 1',device:'VE.Bus System',instance:288},{});
   const gI=vrmFind(records,{desc:'Input current phase 1',device:'VE.Bus System',instance:288},{});
   vrmSetDual(_vrmGridChart,{value:vrmToNum(gV),min:VRM_RANGES.gridV[0],max:VRM_RANGES.gridV[1],unit:'V',color:'#36c2a4',dp:1},{value:vrmToNum(gI),min:VRM_RANGES.gridA[0],max:VRM_RANGES.gridA[1],unit:'A',color:'#f2b338',dp:1});
   const g2V=vrmFind(records,{desc:'Input voltage phase 1',device:'VE.Bus System',instance:276},{});
   const g2I=vrmFind(records,{desc:'Input current phase 1',device:'VE.Bus System',instance:276},{});
   vrmSetDual(_vrmGrid2Chart,{value:vrmToNum(g2V),min:VRM_RANGES.grid2V[0],max:VRM_RANGES.grid2V[1],unit:'V',color:'#36c2a4',dp:1},{value:vrmToNum(g2I),min:VRM_RANGES.grid2A[0],max:VRM_RANGES.grid2A[1],unit:'A',color:'#f2b338',dp:1});
-  const totalAmpsEl = document.getElementById('total-amps-val');
-  if (totalAmpsEl) {
-    const a1 = vrmToNum(gI), a2 = vrmToNum(g2I);
-    const total = (!isNaN(a1) && !isNaN(a2)) ? (a1 + a2).toFixed(1) : (!isNaN(a1) ? a1.toFixed(1) : (!isNaN(a2) ? a2.toFixed(1) : '—'));
-    totalAmpsEl.textContent = total;
+  if (!_mqttConnected) {
+    const totalAmpsEl = document.getElementById('total-amps-val');
+    if (totalAmpsEl) {
+      const a1 = vrmToNum(gI), a2 = vrmToNum(g2I);
+      const total = (!isNaN(a1) && !isNaN(a2)) ? (a1 + a2).toFixed(1) : (!isNaN(a1) ? a1.toFixed(1) : (!isNaN(a2) ? a2.toFixed(1) : '—'));
+      totalAmpsEl.textContent = total;
+    }
   }
   // GPS → Windy
   const latRec = vrmFind(records,{desc:'Latitude'},{}) || vrmFind(records,{desc:'GPS Latitude'},{}) || vrmFind(records,{desc:'Position latitude'},{});
@@ -2207,11 +2214,151 @@ async function vrmTick() {
     if (updatedEl) updatedEl.textContent = '';
   }
 }
+// ── Direct Cerbo GX live data (server-side MQTT bridge → /api/live poll) ─────
+const MQTT_PORTAL_ID = 'c0619abb114f';
+// MQTT_BROKER_URL removed — bridge runs in vrm_dashboard.py over TCP MQTT
+const VEBUS_STATE_NAMES = {
+  0:'Off',1:'Low Power',2:'Fault',3:'Bulk',4:'Absorption',
+  5:'Float',6:'Storage',7:'Equalize',8:'Passthru',9:'Inverting',
+  10:'Power Assist',11:'Power Supply',252:'Ext Control'
+};
+let _mqttConnected=false;
+let _mqttData={vebusStates:{},tempNames:{},tempValues:{},tempHumidity:{}};
+
+function mqttInit() {
+  liveTick();
+  setInterval(liveTick, 1000);
+}
+async function liveTick() {
+  try {
+    var res = await fetch('/api/live');
+    var json = await res.json();
+    if (!json.ok || !json.data) return;
+    _mqttConnected = json.connected === true;
+    var base = 'N/'+MQTT_PORTAL_ID+'/';
+    Object.entries(json.data).forEach(function(e) {
+      var path=e[0], value=e[1];
+      if(value!==null && value!==undefined) mqttHandle(base+path, value);
+    });
+  } catch(e) {
+    _mqttConnected = false;
+  }
+}
+
+function mqttHandle(topic,value){
+  var base='N/'+MQTT_PORTAL_ID+'/';
+  if(!topic.startsWith(base))return;
+  var path=topic.slice(base.length), parts=path.split('/');
+  if(value===null||value===undefined)return;
+  switch(path){
+    case 'system/0/Dc/Battery/Soc':
+      _vrmSocVal=Math.max(0,Math.min(100,Number(value)));
+      if(_vrmSocReady)_vrmSocChart.setOption({dataset:{source:[[1,_vrmSocVal]]}});
+      mqttTimestamp(); return;
+    case 'system/0/Dc/Battery/Voltage':
+      _vrmSocVolt=Number(value); _mqttData.battV=Number(value);
+      mqttBattGauge(); return;
+    case 'system/0/Dc/Battery/Current':
+      _mqttData.battI=Number(value); mqttBattGauge(); return;
+    case 'system/0/Dc/Battery/TimeToGo':
+      var s=Number(value);
+      _vrmSocTTG=(isFinite(s)&&s>0)?Math.round(s/3600)+' h':'';
+      if(_vrmSocReady)_vrmSocChart.setOption({dataset:{source:[[1,_vrmSocVal]]}}); return;
+  }
+  // Battery device topics (BMV/SmartShunt/Lynx Shunt direct service path)
+  if(parts[0]==='battery'&&parts.length>=5){
+    var bpath=parts.slice(2).join('/');
+    if(bpath==='Dc/0/Voltage'){_mqttData.battV=Number(value);mqttBattGauge();}
+    else if(bpath==='Dc/0/Current'){_mqttData.battI=Number(value);mqttBattGauge();}
+    else if(bpath==='Dc/0/Soc'){
+      _vrmSocVal=Math.max(0,Math.min(100,Number(value)));
+      if(_vrmSocReady)_vrmSocChart.setOption({dataset:{source:[[1,_vrmSocVal]]}});
+      mqttTimestamp();
+    }
+    else if(bpath==='Dc/0/TimeToGo'){
+      var s2=Number(value);
+      _vrmSocTTG=(isFinite(s2)&&s2>0)?Math.round(s2/3600)+' h':'';
+      if(_vrmSocReady)_vrmSocChart.setOption({dataset:{source:[[1,_vrmSocVal]]}});
+    }
+    return;
+  }
+  if(parts[0]==='vebus'&&parts.length>=3&&parts[2]==='State'){
+    var inst=parseInt(parts[1]);
+    _mqttData.vebusStates[inst]=VEBUS_STATE_NAMES[value]||String(value);
+    var sorted=Object.keys(_mqttData.vebusStates).map(Number).sort(function(a,b){return a-b;});
+    _vrmSocState=_mqttData.vebusStates[sorted[0]]||'';
+    _vrmSocState2=sorted.length>1?(_mqttData.vebusStates[sorted[1]]||''):'';
+    if(_vrmSocReady)_vrmSocChart.setOption({dataset:{source:[[1,_vrmSocVal]]}}); return;
+  }
+  if(parts[0]==='vebus'&&parts.length>=5){
+    var vi=parseInt(parts[1]), vp=parts.slice(2).join('/');
+    if(vp==='Ac/ActiveIn/L1/V'){if(vi===288){_mqttData.gV=Number(value);mqttGridGauge();}else if(vi===276){_mqttData.g2V=Number(value);mqttGrid2Gauge();}}
+    else if(vp==='Ac/ActiveIn/L1/I'){if(vi===288){_mqttData.gI=Number(value);mqttGridGauge();}else if(vi===276){_mqttData.g2I=Number(value);mqttGrid2Gauge();}}
+    return;
+  }
+  if(parts[0]==='temperature'&&parts.length>=3){
+    var ti=parts[1];
+    if(parts[2]==='CustomName')_mqttData.tempNames[ti]=String(value);
+    else if(parts[2]==='Temperature')_mqttData.tempValues[ti]=Number(value);
+    else if(parts[2]==='Humidity')_mqttData.tempHumidity[ti]=Number(value).toFixed(0)+'%';
+    mqttTempGauges(); return;
+  }
+}
+function mqttTimestamp(){
+  var el=document.getElementById('vrm-updated');
+  if(el)el.textContent='live '+new Date().toLocaleTimeString();
+}
+function mqttBattGauge(){
+  var bV=_mqttData.battV,bI=_mqttData.battI;
+  if(bV!==undefined)vrmSetSoc(_vrmSocVal,undefined,undefined,bV);
+  if(_vrmBattChart&&bV!==undefined)
+    _vrmBattChart.setOption({series:[{data:[{value:bV}]},{data:[{value:bI!==undefined?bI:NaN}]}]});
+}
+function mqttGridGauge(){
+  if(!_vrmGridChart)return;
+  vrmSetDual(_vrmGridChart,
+    {value:_mqttData.gV!==undefined?_mqttData.gV:NaN,min:VRM_RANGES.gridV[0],max:VRM_RANGES.gridV[1],unit:'V',color:'#36c2a4',dp:1},
+    {value:_mqttData.gI!==undefined?_mqttData.gI:NaN,min:VRM_RANGES.gridA[0],max:VRM_RANGES.gridA[1],unit:'A',color:'#f2b338',dp:1});
+  mqttTotalAmps();
+}
+function mqttGrid2Gauge(){
+  if(!_vrmGrid2Chart)return;
+  vrmSetDual(_vrmGrid2Chart,
+    {value:_mqttData.g2V!==undefined?_mqttData.g2V:NaN,min:VRM_RANGES.grid2V[0],max:VRM_RANGES.grid2V[1],unit:'V',color:'#36c2a4',dp:1},
+    {value:_mqttData.g2I!==undefined?_mqttData.g2I:NaN,min:VRM_RANGES.grid2A[0],max:VRM_RANGES.grid2A[1],unit:'A',color:'#f2b338',dp:1});
+  mqttTotalAmps();
+}
+function mqttTotalAmps(){
+  var el=document.getElementById('total-amps-val');
+  if(!el)return;
+  var a1=_mqttData.gI,a2=_mqttData.g2I;
+  el.textContent=(a1!==undefined&&a2!==undefined)?(a1+a2).toFixed(1):(a1!==undefined?a1.toFixed(1):(a2!==undefined?a2.toFixed(1):'—'));
+}
+function mqttTempGauges(){
+  Object.entries(_mqttData.tempNames).forEach(function(e){
+    var inst=e[0],name=e[1];
+    var match=VRM_TEMP_NAMES.find(function(n){return n.toLowerCase()===name.toLowerCase();});
+    if(!match)return;
+    var c=_mqttData.tempValues[inst];
+    var h=_mqttData.tempHumidity[inst]||'';
+    vrmSetTemp(match,(c!==undefined&&isFinite(c))?c*9/5+32:NaN,h);
+  });
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
+function vrmForceRefresh() {
+  const btn = document.getElementById('vrm-refresh-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '⟳ …'; }
+  vrmTick().finally(() => {
+    if (btn) { btn.disabled = false; btn.textContent = '⟳ Refresh'; }
+  });
+}
 function vrmInit() {
   vrmTick();
   setInterval(vrmTick, VRM_REFRESH_MS);
   vrmFetchWeather();
   setInterval(vrmFetchWeather, VRM_WEATHER.refreshMs);
+  mqttInit();
 }
 
 // ── CAMERAS ──

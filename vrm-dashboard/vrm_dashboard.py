@@ -46,6 +46,72 @@ SITE = os.environ.get("VRM_SITE", "931375").strip()
 TOKEN_KIND = os.environ.get("VRM_TOKEN_KIND", "Token").strip()
 PORT = int(os.environ.get("PORT", "8787"))  # 0 = let the OS pick a free port
 
+# Cerbo GX direct MQTT bridge
+CERBO_HOST = os.environ.get("CERBO_HOST", "192.168.0.101")
+CERBO_MQTT_PORT = int(os.environ.get("CERBO_MQTT_PORT", "1883"))
+CERBO_PORTAL_ID = os.environ.get("CERBO_PORTAL_ID", "c0619abb114f")
+
+_live_cache: dict = {}
+_live_lock = threading.Lock()
+_live_connected = False
+
+
+def _mqtt_bridge_start():
+    try:
+        import paho.mqtt.client as pmqtt
+    except ImportError:
+        print("paho-mqtt not installed — live data unavailable", file=sys.stderr)
+        return
+
+    prefix = f"N/{CERBO_PORTAL_ID}/"
+
+    def on_connect(c, u, f, rc):
+        global _live_connected
+        _live_connected = True
+        c.subscribe(f"N/{CERBO_PORTAL_ID}/#")
+        c.publish(f"R/{CERBO_PORTAL_ID}/keepalive", "")
+
+    def on_disconnect(c, u, rc):
+        global _live_connected
+        _live_connected = False
+
+    def on_message(c, u, msg):
+        if not msg.topic.startswith(prefix):
+            return
+        path = msg.topic[len(prefix):]
+        try:
+            val = json.loads(msg.payload).get("value")
+            with _live_lock:
+                _live_cache[path] = val
+        except Exception:
+            pass
+
+    client = pmqtt.Client(client_id="vrm_dash_bridge", clean_session=True)
+    client.on_connect = on_connect
+    client.on_disconnect = on_disconnect
+    client.on_message = on_message
+
+    def keepalive_loop():
+        while True:
+            time.sleep(25)
+            if _live_connected:
+                try:
+                    client.publish(f"R/{CERBO_PORTAL_ID}/keepalive", "")
+                except Exception:
+                    pass
+
+    def run_loop():
+        threading.Thread(target=keepalive_loop, daemon=True).start()
+        while True:
+            try:
+                client.connect(CERBO_HOST, CERBO_MQTT_PORT, 60)
+                client.loop_forever()
+            except Exception as e:
+                print(f"MQTT bridge: {e}", file=sys.stderr)
+            time.sleep(5)
+
+    threading.Thread(target=run_loop, daemon=True).start()
+
 # Auto-stop: when enabled, the page sends heartbeats and the server shuts itself
 # down a few seconds after they stop (i.e. the browser tab was closed). It still
 # survives a page refresh, since that gap is shorter than IDLE_TIMEOUT.
@@ -176,6 +242,18 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(200, f.read_bytes(), "application/javascript")
             return self._send(404, b"not found", "text/plain")
 
+        if path == "/assets/mqtt.min.js":
+            f = HERE.parent / "assets" / "mqtt.min.js"
+            if f.exists():
+                return self._send(200, f.read_bytes(), "application/javascript")
+            return self._send(404, b"not found", "text/plain")
+
+        if path == "/api/live":
+            with _live_lock:
+                data = dict(_live_cache)
+            body = json.dumps({"ok": True, "connected": _live_connected, "data": data}).encode()
+            return self._send(200, body, "application/json")
+
         if path == "/api/restart-camera":
             try:
                 subprocess.run(["pkill", "-f", "go2rtc"], check=False)
@@ -227,6 +305,7 @@ def main():
               "  Create one in VRM -> Preferences -> Integrations -> Access tokens,\n"
               '  then:  export VRM_TOKEN="your-token"  and re-run.', file=sys.stderr)
         sys.exit(1)
+    _mqtt_bridge_start()
     server = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
     url = f"http://localhost:{server.server_address[1]}/"
     try:
