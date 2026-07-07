@@ -26,7 +26,9 @@ Environment variables:
 
 import json
 import os
+import signal
 import ssl
+import subprocess
 import sys
 import threading
 import time
@@ -173,6 +175,22 @@ class Handler(BaseHTTPRequestHandler):
             if f.exists():
                 return self._send(200, f.read_bytes(), "application/javascript")
             return self._send(404, b"not found", "text/plain")
+
+        if path == "/api/restart-camera":
+            try:
+                subprocess.run(["pkill", "-f", "go2rtc"], check=False)
+                time.sleep(1)
+                go2rtc = str(Path.home() / "go2rtc")
+                cfg    = str(Path.home() / "go2rtc.yaml")
+                log    = str(Path.home() / "go2rtc.log")
+                with open(log, "a") as lf:
+                    subprocess.Popen(["setsid", go2rtc, "-config", cfg],
+                                     stdout=lf, stderr=lf,
+                                     stdin=subprocess.DEVNULL,
+                                     start_new_session=True)
+                return self._send(200, b'{"ok":true}', "application/json")
+            except Exception as e:
+                return self._send(500, json.dumps({"ok": False, "error": str(e)}).encode(), "application/json")
 
         if path.startswith("/api/"):
             name = path[len("/api/"):]
