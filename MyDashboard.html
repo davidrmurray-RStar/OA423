@@ -2046,8 +2046,9 @@ function vrmInitAllGauges() {
 function vrmUpdateAllGauges(records, names) {
   if (!vrmGaugeMap.soc) { vrmInitAllGauges(); if (!vrmGaugeMap.soc) return; }
 
-  const voltage = vrmToNum(vrmFind(records, {desc:'Voltage', device:'Battery Monitor'}, names));
-  const current = vrmToNum(vrmFind(records, {desc:'Current', device:'Battery Monitor'}, names));
+  const socInst = (vrmFind(records, {desc:'State of charge', device:'Battery Monitor'}, names) || {}).instance;
+  const voltage = vrmToNum(vrmFind(records, {desc:'Voltage', device:'Battery Monitor', instance:socInst}, names));
+  const current = vrmToNum(vrmFind(records, {desc:'Current', device:'Battery Monitor', instance:socInst}, names));
   if (isFinite(voltage)) {
     const sv = voltage > 18 ? 24 : 12;
     if (sv !== vrmSysVoltage) { vrmSysVoltage = sv; vrmBuildLegend(vrmVoltageCfg(sv)); }
@@ -2055,10 +2056,10 @@ function vrmUpdateAllGauges(records, names) {
   const vcfg = vrmVoltageCfg(vrmSysVoltage);
   if (vrmGaugeMap.battery) vrmGaugeMap.battery.setOption(vrmBatteryOpt(isFinite(voltage)?voltage:null, isFinite(current)?current:null, vcfg));
 
-  const soc = vrmToNum(vrmFind(records, {desc:'State of charge', device:'Battery Monitor'}, names));
+  const soc = vrmToNum(vrmFind(records, {desc:'State of charge', device:'Battery Monitor', instance:socInst}, names));
   const stateRec = vrmFind(records, {desc:'VE.Bus state', device:'VE.Bus'}, names);
   const state = stateRec ? vrmFmt(stateRec) : '';
-  const ttgRec = vrmFind(records, {desc:'Time to go', device:'Battery Monitor'}, names);
+  const ttgRec = vrmFind(records, {desc:'Time to go', device:'Battery Monitor', instance:socInst}, names);
   const ttg = ttgRec ? vrmFmt(ttgRec) : '';
   if (vrmGaugeMap.soc) vrmGaugeMap.soc.setOption(vrmSocOpt(isFinite(soc)?soc:null, state, ttg));
 
@@ -2117,14 +2118,16 @@ function vrmRender(records) {
   const el = document.getElementById('vrm-featured');
   if (!el) return;
   const names = vrmCustomNames(records);
-  // SOC gauge
+  // SOC gauge — anchor all shunt reads to the same instance as SOC
+  // (prevents picking up MPPT/inverter internal meters over the main shunt)
   const socRec = vrmFind(records,{desc:'State of charge',device:'Battery Monitor'},{});
+  const shuntInst = socRec && socRec.instance !== undefined ? socRec.instance : undefined;
   const invRec = vrmFind(records,{desc:'VE.Bus state',device:'VE.Bus'},{});
-  const ttgRec = vrmFind(records,{desc:'Time to go',device:'Battery Monitor'},{});
+  const ttgRec = vrmFind(records,{desc:'Time to go',device:'Battery Monitor',instance:shuntInst},{});
   const ttgTxt = ttgRec&&isFinite(vrmToNum(ttgRec))?Math.round(vrmToNum(ttgRec))+' h':(ttgRec?vrmFmt(ttgRec):'');
-  const bV=vrmFind(records,{desc:'Voltage',device:'Battery Monitor'},{});
+  const bV=vrmFind(records,{desc:'Voltage',device:'Battery Monitor',instance:shuntInst},{});
   vrmSetSoc(socRec?vrmToNum(socRec):NaN,invRec?vrmFmt(invRec):'',ttgTxt,vrmToNum(bV));
-  const bI=vrmFind(records,{desc:'Current',device:'Battery Monitor'},{});
+  const bI=vrmFind(records,{desc:'Current',device:'Battery Monitor',instance:shuntInst},{});
   vrmSetDual(_vrmBattChart,{value:vrmToNum(bV),min:VRM_RANGES.battV[0],max:VRM_RANGES.battV[1],unit:'V',dp:2,zones:VRM_BATT_ZONES},{value:vrmToNum(bI),min:VRM_RANGES.battA[0],max:VRM_RANGES.battA[1],unit:'A',color:'#f2b338',dp:2,bipolar:true});
   const gV=vrmFind(records,{desc:'Input voltage phase 1',device:'VE.Bus System',instance:288},{});
   const gI=vrmFind(records,{desc:'Input current phase 1',device:'VE.Bus System',instance:288},{});
