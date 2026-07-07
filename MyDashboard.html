@@ -348,6 +348,7 @@
         <div style="display:flex;align-items:center;gap:10px;">
           <span id="vrm-updated" style="font-size:10px;color:var(--text-dim);font-family:'DM Mono',monospace;"></span>
           <button id="vrm-refresh-btn" onclick="vrmForceRefresh()" style="font-size:11px;padding:4px 10px;border-radius:8px;border:.5px solid var(--card-border);background:transparent;color:var(--text-dim);cursor:pointer;font-family:'DM Sans',sans-serif;-webkit-tap-highlight-color:transparent;">⟳ Refresh</button>
+          <button id="srv-restart-btn" onclick="serverRestart()" style="font-size:11px;padding:4px 10px;border-radius:8px;border:.5px solid var(--card-border);background:transparent;color:var(--text-dim);cursor:pointer;font-family:'DM Sans',sans-serif;-webkit-tap-highlight-color:transparent;">↺ Server</button>
         </div>
       </div>
       <div id="vrm-status-wrap"></div>
@@ -851,7 +852,7 @@ function recalcHrs() {
 }
 
 // ── CONFIG ──
-const APP_VERSION  = '6.1.0';  // v6.1.0
+const APP_VERSION  = '6.2.0';  // v6.2.0
 const DATA_VERSION = '2';      // bumps when storage schema changes
 
 function setTheme(mode) {
@@ -2345,6 +2346,16 @@ function mqttTempGauges(){
   });
 }
 // ─────────────────────────────────────────────────────────────────────────────
+
+async function serverRestart() {
+  const btn = document.getElementById('srv-restart-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '↺ …'; }
+  try {
+    await fetch('/api/restart-server');
+  } catch(e) {}
+  // wait 4s for run.sh loop to bring it back, then reload
+  setTimeout(() => location.reload(), 4000);
+}
 
 function vrmForceRefresh() {
   const btn = document.getElementById('vrm-refresh-btn');

@@ -254,6 +254,11 @@ class Handler(BaseHTTPRequestHandler):
             body = json.dumps({"ok": True, "connected": _live_connected, "data": data}).encode()
             return self._send(200, body, "application/json")
 
+        if path == "/api/restart-server":
+            self._send(200, b'{"ok":true}', "application/json")
+            threading.Thread(target=lambda: (time.sleep(1), os._exit(0)), daemon=True).start()
+            return
+
         if path == "/api/restart-camera":
             try:
                 subprocess.run(["pkill", "-f", "go2rtc"], check=False)
