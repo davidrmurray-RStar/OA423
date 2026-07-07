@@ -394,6 +394,14 @@
     <!-- CAMERAS VIEW -->
     <div class="view" id="view-cameras">
       <div style="height:16px;"></div>
+      <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
+        <button id="cam-restart-btn" onclick="camRestartService()"
+          style="font-size:12px;padding:7px 14px;border-radius:10px;border:.5px solid rgba(224,92,74,.5);
+                 background:rgba(224,92,74,.12);color:#e05c4a;cursor:pointer;font-family:'DM Sans',sans-serif;
+                 font-weight:500;letter-spacing:.3px;-webkit-tap-highlight-color:transparent;">
+          ⟳ Restart go2rtc
+        </button>
+      </div>
       <div id="cam-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(480px,1fr));gap:16px;"></div>
     </div>
 
@@ -840,7 +848,7 @@ function recalcHrs() {
 }
 
 // ── CONFIG ──
-const APP_VERSION  = '5.0.0';  // v5.0.0
+const APP_VERSION  = '5.0.1';  // v5.0.1
 const DATA_VERSION = '2';      // bumps when storage schema changes
 
 function setTheme(mode) {
@@ -2298,6 +2306,17 @@ function camStop(stream) {
 }
 
 function camStartAll() { camBuildUI(); CAM_LIST.forEach(c => camStart(c)); }
+
+async function camRestartService() {
+  const btn = document.getElementById('cam-restart-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '⟳ Restarting…'; }
+  try {
+    await fetch('/api/restart-camera', { method: 'GET' });
+  } catch(e) {}
+  await new Promise(r => setTimeout(r, 4000));
+  if (btn) { btn.disabled = false; btn.textContent = '⟳ Restart go2rtc'; }
+  CAM_LIST.forEach(c => camStart(c));
+}
 function camStopAll()  { CAM_LIST.forEach(c => camStop(c.stream)); }
 
 // ── INIT ──
