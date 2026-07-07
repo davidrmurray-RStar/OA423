@@ -851,7 +851,7 @@ function recalcHrs() {
 }
 
 // ── CONFIG ──
-const APP_VERSION  = '6.0.0';  // v6.0.0
+const APP_VERSION  = '6.1.0';  // v6.1.0
 const DATA_VERSION = '2';      // bumps when storage schema changes
 
 function setTheme(mode) {
@@ -2142,13 +2142,13 @@ function vrmRender(records) {
     const bI=vrmFind(records,{desc:'Current',device:'Battery Monitor',instance:shuntInst},{});
     vrmSetDual(_vrmBattChart,{value:vrmToNum(bV),min:VRM_RANGES.battV[0],max:VRM_RANGES.battV[1],unit:'V',dp:2,zones:VRM_BATT_ZONES},{value:vrmToNum(bI),min:VRM_RANGES.battA[0],max:VRM_RANGES.battA[1],unit:'A',color:'#f2b338',dp:2,bipolar:true});
   }
-  const gV=vrmFind(records,{desc:'Input voltage phase 1',device:'VE.Bus System',instance:288},{});
-  const gI=vrmFind(records,{desc:'Input current phase 1',device:'VE.Bus System',instance:288},{});
-  vrmSetDual(_vrmGridChart,{value:vrmToNum(gV),min:VRM_RANGES.gridV[0],max:VRM_RANGES.gridV[1],unit:'V',color:'#36c2a4',dp:1},{value:vrmToNum(gI),min:VRM_RANGES.gridA[0],max:VRM_RANGES.gridA[1],unit:'A',color:'#f2b338',dp:1});
-  const g2V=vrmFind(records,{desc:'Input voltage phase 1',device:'VE.Bus System',instance:276},{});
-  const g2I=vrmFind(records,{desc:'Input current phase 1',device:'VE.Bus System',instance:276},{});
-  vrmSetDual(_vrmGrid2Chart,{value:vrmToNum(g2V),min:VRM_RANGES.grid2V[0],max:VRM_RANGES.grid2V[1],unit:'V',color:'#36c2a4',dp:1},{value:vrmToNum(g2I),min:VRM_RANGES.grid2A[0],max:VRM_RANGES.grid2A[1],unit:'A',color:'#f2b338',dp:1});
   if (!_mqttConnected) {
+    const gV=vrmFind(records,{desc:'Input voltage phase 1',device:'VE.Bus System',instance:288},{});
+    const gI=vrmFind(records,{desc:'Input current phase 1',device:'VE.Bus System',instance:288},{});
+    vrmSetDual(_vrmGridChart,{value:vrmToNum(gV),min:VRM_RANGES.gridV[0],max:VRM_RANGES.gridV[1],unit:'V',color:'#36c2a4',dp:1},{value:vrmToNum(gI),min:VRM_RANGES.gridA[0],max:VRM_RANGES.gridA[1],unit:'A',color:'#f2b338',dp:1});
+    const g2V=vrmFind(records,{desc:'Input voltage phase 1',device:'VE.Bus System',instance:276},{});
+    const g2I=vrmFind(records,{desc:'Input current phase 1',device:'VE.Bus System',instance:276},{});
+    vrmSetDual(_vrmGrid2Chart,{value:vrmToNum(g2V),min:VRM_RANGES.grid2V[0],max:VRM_RANGES.grid2V[1],unit:'V',color:'#36c2a4',dp:1},{value:vrmToNum(g2I),min:VRM_RANGES.grid2A[0],max:VRM_RANGES.grid2A[1],unit:'A',color:'#f2b338',dp:1});
     const totalAmpsEl = document.getElementById('total-amps-val');
     if (totalAmpsEl) {
       const a1 = vrmToNum(gI), a2 = vrmToNum(g2I);
