@@ -1,4 +1,4 @@
-# Vessel Maintenance Dashboard
+# Vessel Dashboard
 ### iPad App — Installation & User Guide
 
 ---
