@@ -1,0 +1,12 @@
+# Live device config with real credentials — never commit
+go2rtc.yaml
+
+# Personal reference documents (wiring diagrams, insurance, etc.)
+docs/
+
+# macOS
+.DS_Store
+**/.DS_Store
+
+# VRM token — must only ever exist as an env var / on-device file
+vrm_token.txt
