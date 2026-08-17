@@ -83,6 +83,12 @@
   .tab.active{background:var(--brass);color:var(--deep);border-color:var(--brass);}
   .tab:not(.active):hover{border-color:var(--card-border);color:var(--text);}
 
+  .subtabs{display:none;gap:4px;padding:8px 20px 0;flex-shrink:0;}
+  .subtab{font-family:'DM Sans',sans-serif;font-size:11px;font-weight:500;letter-spacing:.4px;text-transform:uppercase;
+    padding:5px 14px;border-radius:16px;border:.5px solid var(--card-border);background:transparent;color:var(--text-dim);cursor:pointer;transition:all .2s;}
+  .subtab.active{background:rgba(200,146,42,.15);color:var(--brass-light);border-color:var(--brass);}
+  .subtab:not(.active):hover{border-color:rgba(200,146,42,.4);color:var(--text);}
+
   /* SCROLL */
   .scroll-area{flex:1;overflow-y:auto;overflow-x:hidden;padding:16px 20px 32px;-webkit-overflow-scrolling:touch;}
   .scroll-area::-webkit-scrollbar{display:none;}
@@ -97,7 +103,6 @@
 
   /* INTERVAL CARDS */
   .icard{background:var(--card-bg);border:.5px solid var(--card-border);border-radius:var(--radius-sm);padding:14px 16px;position:relative;overflow:hidden;}
-  /* Status accent moved to the right side so left can show system color */
   .icard::before{content:'';position:absolute;right:0;top:0;bottom:0;width:3px;border-radius:0 3px 3px 0;}
   .icard.ok::before{background:var(--good);} .icard.warn::before{background:var(--warn);} .icard.due::before{background:var(--danger);}
   .icard-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;}
@@ -115,6 +120,8 @@
   .reorder-btn.active{background:var(--brass);color:var(--deep);border-color:var(--brass);}
   .coll-section.dragging{opacity:.4;border:1.5px dashed var(--brass);}
   .coll-section.drag-over{border-color:var(--brass-light);background:rgba(200,146,42,.06);}
+  .doc-tile.dragging{opacity:.4;border:1.5px dashed var(--brass);}
+  .doc-tile.drag-over{border-color:var(--brass-light);background:rgba(200,146,42,.06);}
   .drag-handle{cursor:grab;padding:0 8px;color:var(--text-dim);font-size:16px;line-height:1;display:none;align-items:center;user-select:none;-webkit-user-select:none;}
   .drag-handle:active{cursor:grabbing;}
   body.reorder-mode .drag-handle{display:flex;}
@@ -260,12 +267,19 @@
   </header>
 
   <div class="tabs">
-    <button class="tab active" onclick="switchTab('live')">Electrical</button>
-    <button class="tab" onclick="switchTab('weather')">Weather</button>
-    <button class="tab" onclick="switchTab('cameras')">Cameras</button>
-    <button class="tab" onclick="switchTab('overview')">Maint. Overview</button>
-    <button class="tab" onclick="switchTab('log')">Log</button>
-    <button class="tab" onclick="switchTab('intervals')">Intervals</button>
+    <button class="tab active" data-tab="live" onclick="switchTab('live')">Electrical</button>
+    <button class="tab" data-tab="weather" onclick="switchTab('weather')">Weather</button>
+    <button class="tab" data-tab="cameras" onclick="switchTab('cameras')">Cameras</button>
+    <button class="tab" data-tab="tanks" onclick="switchTab('tanks')">Tanks</button>
+    <button class="tab" data-tab="maintenance" onclick="switchTab('maintenance')">Maintenance</button>
+    <button class="tab" data-tab="documents" onclick="switchTab('documents')">Documents</button>
+  </div>
+
+  <div class="subtabs" id="maint-subtabs">
+    <button class="subtab active" data-sub="overview" onclick="switchMaintSubtab('overview')">Overview</button>
+    <button class="subtab" data-sub="log" onclick="switchMaintSubtab('log')">Log</button>
+    <button class="subtab" data-sub="intervals" onclick="switchMaintSubtab('intervals')">Intervals</button>
+    <button class="subtab" data-sub="spares" onclick="switchMaintSubtab('spares')">Spares</button>
   </div>
 
   <div class="scroll-area">
@@ -338,6 +352,34 @@
           <canvas id="intChart"></canvas>
         </div>
       </div>
+    </div>
+
+    <!-- SPARES -->
+    <div class="view" id="view-spares">
+      <div style="height:16px;"></div>
+      <div class="filter-row" id="spare-filters">
+        <button class="add-entry-btn" onclick="showAddSpare()">+ Add Spare</button>
+      </div>
+      <div class="log-table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Component</th><th>Description</th><th>Part #</th>
+              <th>Qty</th><th>Sourced</th><th>Last Paid</th><th>Stored</th><th></th>
+            </tr>
+          </thead>
+          <tbody id="spare-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- DOCUMENTS -->
+    <div class="view" id="view-documents">
+      <div style="height:16px;"></div>
+      <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
+        <button id="doc-reorder-btn" class="reorder-btn" onclick="toggleDocReorderMode()">⠿ Reorder</button>
+      </div>
+      <div id="doc-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;"></div>
     </div>
 
     <!-- LIVE / VRM -->
@@ -431,6 +473,23 @@
       <div id="cam-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(480px,1fr));gap:16px;"></div>
     </div>
 
+    <!-- TANKS VIEW -->
+    <div class="view" id="view-tanks">
+      <div style="height:16px;"></div>
+      <div id="tank-unsupported" style="display:none;background:rgba(224,92,74,.1);border:.5px solid rgba(224,92,74,.4);border-radius:12px;padding:16px 20px;margin-bottom:16px;color:#e05c4a;font-size:13px;">
+        Web Bluetooth isn't available in this browser. Open this dashboard in Chrome on the tablet to connect tank sensors.
+      </div>
+      <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
+        <button id="tank-add-btn" onclick="tankAddDevice()"
+          style="font-size:12px;padding:7px 16px;border-radius:10px;border:.5px solid var(--brass);
+                 background:rgba(200,146,42,.1);color:var(--brass);cursor:pointer;font-family:'DM Sans',sans-serif;
+                 font-weight:500;letter-spacing:.3px;-webkit-tap-highlight-color:transparent;">
+          + Add Tank Sensor
+        </button>
+      </div>
+      <div id="tank-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;"></div>
+    </div>
+
   </div><!-- scroll-area -->
 
   <!-- ADD / EDIT ENTRY OVERLAY -->
@@ -491,6 +550,65 @@
           <button class="btn-primary" onclick="submitEntry()" id="entry-submit-btn">Save Entry</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- ADD / EDIT SPARE OVERLAY -->
+  <div class="overlay" id="spare-overlay">
+    <div class="overlay-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <span class="overlay-title" id="spare-overlay-title">New Spare</span>
+        <button class="overlay-close" onclick="hideSpareOverlay()">×</button>
+      </div>
+      <form id="sp-form" onsubmit="return false;" style="display:grid;gap:12px;">
+        <div>
+          <label class="field-label">Component *</label>
+          <input id="sp-component" type="text" list="comp-datalist" placeholder="Select or type…" class="field-input" autocomplete="off">
+        </div>
+        <div>
+          <label class="field-label">Description *</label>
+          <input id="sp-description" type="text" placeholder="e.g. Raw water impeller" class="field-input">
+        </div>
+        <div class="field-grid-2">
+          <div>
+            <label class="field-label">Part #</label>
+            <input id="sp-partnum" type="text" placeholder="e.g. Sherwood 1700K" class="field-input">
+          </div>
+          <div>
+            <label class="field-label">Qty on Hand</label>
+            <input id="sp-qty" type="number" placeholder="e.g. 2" class="field-input mono-input">
+          </div>
+        </div>
+        <div class="field-grid-2">
+          <div>
+            <label class="field-label">Sourced</label>
+            <input id="sp-sourced" type="text" placeholder="e.g. West Marine" class="field-input">
+          </div>
+          <div>
+            <label class="field-label">Last Paid</label>
+            <input id="sp-lastpaid" type="number" step="0.01" placeholder="e.g. 45.00" class="field-input mono-input">
+          </div>
+        </div>
+        <div>
+          <label class="field-label">Stored</label>
+          <input id="sp-stored" type="text" placeholder="e.g. Engine Room Locker 2" class="field-input">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px;">
+          <button class="btn-ghost" onclick="hideSpareOverlay()">Cancel</button>
+          <button class="btn-primary" onclick="submitSpare()" id="spare-submit-btn">Save Spare</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- DOCUMENT VIEWER OVERLAY -->
+  <div class="overlay" id="doc-overlay">
+    <div class="overlay-card" style="max-width:1100px;width:100%;height:92vh;display:flex;flex-direction:column;padding:16px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-shrink:0;">
+        <span class="overlay-title" id="doc-overlay-title">Document</span>
+        <button class="overlay-close" onclick="docClose()">×</button>
+      </div>
+      <iframe id="doc-frame" src="about:blank" style="flex:1;width:100%;border:none;border-radius:10px;background:#fff;"></iframe>
     </div>
   </div>
 
@@ -580,6 +698,11 @@
             </label>
           </div>
         </div>
+        <!-- Visible Tabs -->
+        <div style="border-top:.5px solid var(--card-border);padding-top:14px;">
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text-dim);margin-bottom:10px;">Visible Tabs</div>
+          <div id="tab-toggles" style="display:grid;gap:8px;"></div>
+        </div>
         <!-- Component List -->
         <div style="border-top:.5px solid var(--card-border);padding-top:14px;">
           <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text-dim);margin-bottom:10px;">Components</div>
@@ -640,6 +763,7 @@ const LS_DATA_VER   = 'ss_data_version';
 const LS_BOAT_PHOTO = 'ss_boat_photo';
 const LS_COMPONENTS = 'ss_components';
 const LS_SYSTEMS    = 'ss_systems';
+const LS_SPARES      = 'ss_spares';
 
 const SEED_LOG = [
   {date:'6/1/2026',  hours:3137, system:'Stb Engine',  component:'Oil',           part:'NAPA 5168',      action:'Replaced', notes:''},
@@ -674,7 +798,15 @@ let RAW = [];
 let INTERVALS = [];
 let CURRENT_HRS = {};
 let MANUAL_HRS = {};
-let CONFIG = { boatName: 'Sunset Serenade', vesselId: 'QA 423', theme: 'dark', sectionOrder: ['oil','fluids','components'] };
+let CONFIG = { boatName: 'Sunset Serenade', vesselId: 'QA 423', theme: 'dark', sectionOrder: ['oil','fluids','components'], hiddenTabs: [] };
+const TAB_DEFS = [
+  { name:'live', label:'Electrical' },
+  { name:'weather', label:'Weather' },
+  { name:'cameras', label:'Cameras' },
+  { name:'tanks', label:'Tanks' },
+  { name:'maintenance', label:'Maintenance' },
+  { name:'documents', label:'Documents' },
+];
 const SEED_SYSTEMS = [
   {name:'Port Engine', color:'#378add'},
   {name:'Stb Engine',  color:'#2db88a'},
@@ -694,6 +826,7 @@ const SEED_COMPONENTS = [
   'Battery','Alternator','Starter',
 ];
 let COMPONENTS = [];
+let SPARES = [];
 
 // ── STORAGE ──
 function saveAll() {
@@ -705,6 +838,7 @@ function saveAll() {
     localStorage.setItem(LS_DATA_VER,   DATA_VERSION);
     localStorage.setItem(LS_COMPONENTS, JSON.stringify(COMPONENTS));
     localStorage.setItem(LS_SYSTEMS,    JSON.stringify(SYSTEMS));
+    localStorage.setItem(LS_SPARES,     JSON.stringify(SPARES));
   } catch(e){ console.warn('Save failed:', e); }
 }
 
@@ -746,12 +880,14 @@ function loadAll() {
     // Parse raw stored values
     const comps    = localStorage.getItem(LS_COMPONENTS);
     const syss     = localStorage.getItem(LS_SYSTEMS);
+    const spares   = localStorage.getItem(LS_SPARES);
     let parsedLog  = log   ? JSON.parse(log)   : JSON.parse(JSON.stringify(SEED_LOG));
     let parsedIvs  = ivs   ? JSON.parse(ivs)   : SEED_INTERVALS.map(iv=>({...iv}));
     let parsedHrs  = hrs   ? JSON.parse(hrs)   : {};
     let parsedCfg  = cfg   ? JSON.parse(cfg)   : {};
     let parsedComps= comps ? JSON.parse(comps) : [...SEED_COMPONENTS];
     let parsedSys  = syss  ? JSON.parse(syss)  : JSON.parse(JSON.stringify(SEED_SYSTEMS));
+    let parsedSpares = spares ? JSON.parse(spares) : [];
 
     // Run any pending migrations (no-op if storedVer === DATA_VERSION)
     if (!firstRun && storedVer !== DATA_VERSION) {
@@ -767,6 +903,7 @@ function loadAll() {
     CONFIG     = Object.assign(CONFIG, parsedCfg);
     COMPONENTS = parsedComps;
     SYSTEMS    = parsedSys;
+    SPARES     = parsedSpares;
     rebuildIntervals(parsedIvs);
 
     // First run — persist seed data and stamp version
@@ -784,6 +921,7 @@ function loadAll() {
     CONFIG = Object.assign(CONFIG, {});
     COMPONENTS = [...SEED_COMPONENTS];
     SYSTEMS    = JSON.parse(JSON.stringify(SEED_SYSTEMS));
+    SPARES     = [];
     rebuildIntervals(SEED_INTERVALS);
   }
   recalcHrs();
@@ -802,6 +940,7 @@ function exportData() {
     config: CONFIG,
     components: COMPONENTS,
     systems: SYSTEMS,
+    spares: SPARES,
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
   const url  = URL.createObjectURL(blob);
@@ -826,6 +965,7 @@ function importData(file) {
       CONFIG     = Object.assign(CONFIG, payload.config || {});
       COMPONENTS = payload.components || [...SEED_COMPONENTS];
       SYSTEMS    = payload.systems    || JSON.parse(JSON.stringify(SEED_SYSTEMS));
+      SPARES     = payload.spares     || [];
       rebuildIntervals(payload.intervals || SEED_INTERVALS);
       saveAll();
       recalcHrs();
@@ -874,7 +1014,7 @@ function recalcHrs() {
 }
 
 // ── CONFIG ──
-const APP_VERSION  = '6.3.0';  // v6.3.0
+const APP_VERSION  = '6.9.1';  // v6.9.1 — ?tab= deep link
 const DATA_VERSION = '2';      // bumps when storage schema changes
 
 function setTheme(mode) {
@@ -1036,6 +1176,40 @@ function applyConfig() {
   setTheme(CONFIG.theme || 'dark');
   const vEl = document.getElementById('version-display');
   if (vEl) vEl.textContent = `VERSION ${APP_VERSION}  ·  DATA v${DATA_VERSION}`;
+  applyTabVisibility();
+}
+
+function applyTabVisibility() {
+  const hidden = CONFIG.hiddenTabs || [];
+  document.querySelectorAll('.tab[data-tab]').forEach(btn=>{
+    btn.style.display = hidden.includes(btn.dataset.tab) ? 'none' : '';
+  });
+  // If the active tab just got hidden, jump to the first visible one
+  const activeBtn = document.querySelector('.tab.active[data-tab]');
+  if (activeBtn && hidden.includes(activeBtn.dataset.tab)) {
+    const firstVisible = TAB_DEFS.find(t=>!hidden.includes(t.name));
+    if (firstVisible) switchTab(firstVisible.name);
+  }
+}
+
+function renderTabToggles() {
+  const el = document.getElementById('tab-toggles');
+  if (!el) return;
+  const hidden = CONFIG.hiddenTabs || [];
+  el.innerHTML = TAB_DEFS.map(t => `
+    <label style="display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer;">
+      <input type="checkbox" ${hidden.includes(t.name)?'':'checked'} onchange="toggleTabVisibility('${t.name}',this.checked)" style="width:16px;height:16px;accent-color:var(--brass);cursor:pointer;">
+      ${t.label}
+    </label>`).join('');
+}
+
+function toggleTabVisibility(name, visible) {
+  const hidden = new Set(CONFIG.hiddenTabs || []);
+  if (visible) hidden.delete(name); else hidden.add(name);
+  if (hidden.size >= TAB_DEFS.length) { alert('At least one tab must stay visible.'); renderTabToggles(); return; }
+  CONFIG.hiddenTabs = [...hidden];
+  saveAll();
+  applyTabVisibility();
 }
 
 function showConfig() {
@@ -1044,6 +1218,7 @@ function showConfig() {
   setTheme(CONFIG.theme || 'dark');
   renderCompTags();
   renderSysTags();
+  renderTabToggles();
   const stored = localStorage.getItem(LS_BOAT_PHOTO);
   const cfg = document.getElementById('cfg-boat-thumb');
   if (cfg) cfg.src = stored || 'SS_app.jpg';
@@ -1279,7 +1454,7 @@ function icardHTML(s) {
     ? `<div style="font-size:11px;color:var(--text-dim);margin-top:6px;padding-top:6px;border-top:.5px solid var(--border);font-style:italic;line-height:1.4;">${s.last.notes}</div>`
     : '';
   const color = SYS_COLOR(s.sys);
-  return `<div class="icard ${s.cls}" style="border-left:3px solid ${color};">
+  return `<div class="icard ${s.cls}">
     <div class="icard-top">
       <div class="icard-name" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
         <span class="sys-pill" style="background:${color}22;color:${color};border-color:${color}55;"><span class="sys-dot" style="background:${color};"></span>${s.sys}</span>
@@ -1347,7 +1522,7 @@ function buildOvSectionHTML(sectionId, comps, compFilter) {
           ? `<div style="font-size:11px;color:var(--text-dim);margin-top:6px;padding-top:6px;border-top:.5px solid var(--border);font-style:italic;line-height:1.4;">${last.notes}</div>`
           : '';
         const sysColor = SYS_COLOR(sys);
-        cardsHTML.push(`<div class="icard ok" style="border-left:3px solid ${sysColor};">
+        cardsHTML.push(`<div class="icard ok">
           <div class="icard-top">
             <div class="icard-name" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
               <span class="sys-pill" style="background:${sysColor}22;color:${sysColor};border-color:${sysColor}55;"><span class="sys-dot" style="background:${sysColor};"></span>${sys}</span>
@@ -1546,6 +1721,76 @@ function renderLog() {
   }).join('');
 }
 
+// ── SPARES ──
+let spareFilter='All';
+function buildSpareFilters() {
+  const comps = ['All',...new Set(SPARES.map(s=>s.component))];
+  const pills = comps.map(c=>`<button class="fpill ${c===spareFilter?'active':''}" onclick="setSpareFilter('${c.replace(/'/g,"\\'")}')">${c}</button>`).join('');
+  document.getElementById('spare-filters').innerHTML =
+    `<button class="add-entry-btn" onclick="showAddSpare()">+ Add Spare</button>${pills}`;
+}
+function setSpareFilter(comp){ spareFilter=comp; buildSpareFilters(); renderSpares(); }
+function renderSpares() {
+  const rows = spareFilter==='All' ? SPARES : SPARES.filter(s=>s.component===spareFilter);
+  const sorted = [...rows].sort((a,b)=>(a.description||'').localeCompare(b.description||''));
+  document.getElementById('spare-tbody').innerHTML = sorted.map(s=>{
+    const idx = SPARES.indexOf(s);
+    return `<tr>
+      <td><span class="sys-pill" style="background:rgba(127,155,176,.15);color:#a9c2d4;border-color:rgba(127,155,176,.4);">${s.component}</span></td>
+      <td>${s.description}</td>
+      <td style="color:var(--text-dim);font-size:11px;">${s.partNum||'—'}</td>
+      <td class="mono">${s.qty??'—'}</td>
+      <td style="color:var(--text-dim);font-size:11px;">${s.sourced||'—'}</td>
+      <td class="mono">${s.lastPaid!=null?'$'+Number(s.lastPaid).toFixed(2):'—'}</td>
+      <td style="color:var(--text-dim);font-size:11px;">${s.stored||'—'}</td>
+      <td style="white-space:nowrap;">
+        <button class="icon-btn" onclick="showEditSpare(${idx})" title="Edit">✎</button>
+        <button class="icon-btn" onclick="deleteSpare(${idx})" title="Delete" style="color:var(--danger);">✕</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+let editSpareIdx=null;
+function showAddSpare() {
+  editSpareIdx=null;
+  document.getElementById('spare-overlay-title').textContent='New Spare';
+  document.getElementById('spare-submit-btn').textContent='Save Spare';
+  document.getElementById('sp-form').reset();
+  document.getElementById('spare-overlay').style.display='flex';
+}
+function showEditSpare(idx) {
+  editSpareIdx=idx; const s=SPARES[idx];
+  document.getElementById('spare-overlay-title').textContent='Edit Spare';
+  document.getElementById('spare-submit-btn').textContent='Update Spare';
+  document.getElementById('sp-component').value=s.component||'';
+  document.getElementById('sp-description').value=s.description||'';
+  document.getElementById('sp-partnum').value=s.partNum||'';
+  document.getElementById('sp-qty').value=s.qty??'';
+  document.getElementById('sp-sourced').value=s.sourced||'';
+  document.getElementById('sp-lastpaid').value=s.lastPaid??'';
+  document.getElementById('sp-stored').value=s.stored||'';
+  document.getElementById('spare-overlay').style.display='flex';
+}
+function hideSpareOverlay() { document.getElementById('spare-overlay').style.display='none'; document.getElementById('sp-form').reset(); editSpareIdx=null; }
+function submitSpare() {
+  const component=document.getElementById('sp-component').value.trim();
+  const description=document.getElementById('sp-description').value.trim();
+  const partNum=document.getElementById('sp-partnum').value.trim();
+  const qty=document.getElementById('sp-qty').value.trim();
+  const sourced=document.getElementById('sp-sourced').value.trim();
+  const lastPaid=document.getElementById('sp-lastpaid').value.trim();
+  const stored=document.getElementById('sp-stored').value.trim();
+  if (!component||!description){ alert('Component and Description are required.'); return; }
+  const entry={component,description,partNum,qty:qty?Number(qty):null,sourced,lastPaid:lastPaid?Number(lastPaid):null,stored};
+  if (editSpareIdx!==null) SPARES[editSpareIdx]=entry; else SPARES.push(entry);
+  saveAll(); hideSpareOverlay(); buildSpareFilters(); renderSpares();
+}
+function deleteSpare(idx) {
+  const s=SPARES[idx];
+  if (!confirm(`Delete this spare part?\n\n${s.component}  ·  ${s.description}`)) return;
+  SPARES.splice(idx,1); saveAll(); buildSpareFilters(); renderSpares();
+}
+
 // ── INTERVALS ──
 let intChartInst=null;
 let editIvIdx=null;
@@ -1724,28 +1969,49 @@ function buildIntervals() {
 }
 
 // ── TABS ──
+const MAINT_SUBS = ['overview','log','intervals','spares'];
+let activeMaintSub = 'overview';
+
 function switchTab(name) {
+  const topName = MAINT_SUBS.includes(name) ? 'maintenance' : name;
   document.querySelectorAll('.tab').forEach((t,i)=>{
-    t.classList.toggle('active',['live','weather','cameras','overview','log','intervals'][i]===name);
+    t.classList.toggle('active',['live','weather','cameras','tanks','maintenance','documents'][i]===topName);
   });
-  document.querySelectorAll('.view').forEach(v=>{
-    v.classList.toggle('active',v.id==='view-'+name);
-  });
-  if (name === 'live') {
+  const subtabBar = document.getElementById('maint-subtabs');
+  if (subtabBar) subtabBar.style.display = topName==='maintenance' ? 'flex' : 'none';
+  if (topName === 'maintenance') {
+    switchMaintSubtab(MAINT_SUBS.includes(name) ? name : activeMaintSub);
+  } else {
+    document.querySelectorAll('.view').forEach(v=>{
+      v.classList.toggle('active', v.id==='view-'+name);
+    });
+  }
+  if (topName === 'live') {
     camStopAll();
     setTimeout(function() {
       [_vrmSocChart, _vrmBattChart, _vrmGridChart, _vrmGrid2Chart].forEach(function(c){ c && c.resize(); });
       Object.values(_vrmTempCharts).forEach(function(t){ t && t.chart && t.chart.resize(); });
     }, 50);
-  } else if (name === 'cameras') {
+  } else if (topName === 'cameras') {
     camStartAll();
   } else {
     camStopAll();
   }
+  if (topName === 'tanks') tankRender();
+}
+
+function switchMaintSubtab(sub) {
+  activeMaintSub = sub;
+  document.querySelectorAll('#maint-subtabs .subtab').forEach(t=>{
+    t.classList.toggle('active', t.dataset.sub===sub);
+  });
+  document.querySelectorAll('.view').forEach(v=>{
+    v.classList.toggle('active', v.id==='view-'+sub);
+  });
 }
 
 // ── REFRESH ──
-function refreshAll() { buildOverview(); buildLogFilters(); renderLog(); buildIntervals(); }
+function refreshAll() { buildOverview(); buildLogFilters(); renderLog(); buildIntervals(); buildSpareFilters(); renderSpares(); }
 
 // ── VRM LIVE ──
 const VRM_REFRESH_MS = 10000;
@@ -2154,9 +2420,11 @@ function vrmRender(records) {
   // (prevents picking up MPPT/inverter internal meters over the main shunt)
   const socRec = vrmFind(records,{desc:'State of charge',device:'Battery Monitor'},{});
   const shuntInst = socRec && socRec.instance !== undefined ? socRec.instance : undefined;
-  const invRecs = records.filter(r=>vrmLC(r.description)===vrmLC('VE.Bus state')&&vrmLC(r.Device||'').includes('ve.bus')).sort((a,b)=>(a.instance||0)-(b.instance||0));
-  const invState1 = invRecs[0] ? vrmFmt(invRecs[0]) : '';
-  const invState2 = invRecs[1] ? vrmFmt(invRecs[1]) : '';
+  const invRecs = records.filter(r=>vrmLC(r.description)===vrmLC('VE.Bus state')&&vrmLC(r.Device||'').includes('ve.bus'));
+  const invRec1 = invRecs.find(r=>r.instance===288);
+  const invRec2 = invRecs.find(r=>r.instance===276);
+  const invState1 = invRec1 ? vrmFmt(invRec1) : '';
+  const invState2 = invRec2 ? vrmFmt(invRec2) : '';
   const ttgRec = vrmFind(records,{desc:'Time to go',device:'Battery Monitor',instance:shuntInst},{});
   const ttgTxt = ttgRec&&isFinite(vrmToNum(ttgRec))?Math.round(vrmToNum(ttgRec))+' h':(ttgRec?vrmFmt(ttgRec):'');
   const bV=vrmFind(records,{desc:'Voltage',device:'Battery Monitor',instance:shuntInst},{});
@@ -2308,9 +2576,8 @@ function mqttHandle(topic,value){
   if(parts[0]==='vebus'&&parts.length>=3&&parts[2]==='State'){
     var inst=parseInt(parts[1]);
     _mqttData.vebusStates[inst]=VEBUS_STATE_NAMES[value]||String(value);
-    var sorted=Object.keys(_mqttData.vebusStates).map(Number).sort(function(a,b){return a-b;});
-    _vrmSocState=_mqttData.vebusStates[sorted[0]]||'';
-    _vrmSocState2=sorted.length>1?(_mqttData.vebusStates[sorted[1]]||''):'';
+    _vrmSocState=_mqttData.vebusStates[288]||'';
+    _vrmSocState2=_mqttData.vebusStates[276]||'';
     if(_vrmSocReady)_vrmSocChart.setOption({dataset:{source:[[1,_vrmSocVal]]}}); return;
   }
   if(parts[0]==='vebus'&&parts.length>=5){
@@ -2422,7 +2689,7 @@ function vrmInit() {
 }
 
 // ── CAMERAS ──
-const GO2RTC = 'http://localhost:1984';
+const GO2RTC = `http://${location.hostname}:1984`;
 const CAM_LIST = [
   { name: 'Main Camera', stream: 'camera1', ip: '192.168.0.111' }
 ];
@@ -2537,6 +2804,248 @@ async function camRestartService() {
 }
 function camStopAll()  { CAM_LIST.forEach(c => camStop(c.stream)); }
 
+// ── TANKS (Web Bluetooth GATT — TankMaster) ──
+const TANK_SERVICE_UUID = '8e400001-c5ab-11e5-9915-0002a5d5c51b';
+const TANK_STATUS_CHAR  = '00002a58-0000-1000-8000-00805f9b34fb';
+const LS_TANK_DEVICES   = 'ss_tank_devices';
+const TANK_TYPE_COLOR = {F:'#378add', G:'#8a99a8', B:'#a06a3a', U:'#7a9bb0'};
+const TANK_TYPE_NAME  = {F:'Fresh Water', G:'Grey Water', B:'Black Water', U:'Unknown'};
+
+let _tankDevices = {}; // device.id -> {name, device, char, data, connected, reconnecting, lastUpdate}
+
+function tankSupported() { return !!(navigator.bluetooth); }
+
+async function tankAddDevice() {
+  if (!tankSupported()) { document.getElementById('tank-unsupported').style.display='block'; return; }
+  try {
+    // Filter by name prefix, not service UUID: the device advertises 9 services + mfr data + name,
+    // which doesn't fit in one BLE advertising packet, so a service-UUID filter can miss it depending
+    // on what Chrome sees pre-connection. Name is always in the primary advertisement.
+    const device = await navigator.bluetooth.requestDevice({
+      filters: [{ namePrefix: 'TM-' }],
+      optionalServices: [TANK_SERVICE_UUID]
+    });
+    await tankConnectDevice(device);
+  } catch(e) {
+    if (e.name !== 'NotFoundError') console.warn('Tank pairing failed:', e);
+  }
+}
+
+async function tankConnectDevice(device) {
+  const id = device.id;
+  _tankDevices[id] = _tankDevices[id] || { name: device.name || 'Tank Sensor', device, data:null, connected:false, reconnecting:false };
+  const entry = _tankDevices[id];
+  entry.device = device;
+  entry.name = device.name || entry.name;
+  device.addEventListener('gattserverdisconnected', () => tankOnDisconnect(id));
+  try {
+    const server = await device.gatt.connect();
+    const service = await server.getPrimaryService(TANK_SERVICE_UUID);
+    const char = await service.getCharacteristic(TANK_STATUS_CHAR);
+    entry.char = char;
+    entry.connected = true;
+    entry.reconnecting = false;
+    char.addEventListener('characteristicvaluechanged', ev => tankHandleNotify(id, ev.target.value));
+    await char.startNotifications();
+    try { tankHandleNotify(id, await char.readValue()); } catch(e) {}
+    tankSaveIds();
+    tankRender();
+  } catch(e) {
+    console.warn('Tank connect failed:', e);
+    entry.connected = false;
+    tankRender();
+  }
+}
+
+function tankHandleNotify(id, dataView) {
+  try {
+    const json = JSON.parse(new TextDecoder().decode(dataView));
+    const entry = _tankDevices[id];
+    if (!entry) return;
+    entry.data = json;
+    entry.lastUpdate = Date.now();
+    entry.connected = true;
+    tankRender();
+  } catch(e) { console.warn('Tank payload parse failed:', e); }
+}
+
+function tankOnDisconnect(id) {
+  const entry = _tankDevices[id];
+  if (!entry) return;
+  entry.connected = false;
+  tankRender();
+  tankReconnect(id);
+}
+
+function tankReconnect(id) {
+  const entry = _tankDevices[id];
+  if (!entry || entry.reconnecting) return;
+  entry.reconnecting = true;
+  tankRender();
+  const tryOnce = async () => {
+    if (!_tankDevices[id]) return;
+    await tankConnectDevice(entry.device);
+    if (_tankDevices[id] && !_tankDevices[id].connected) setTimeout(tryOnce, 8000);
+  };
+  setTimeout(tryOnce, 3000);
+}
+
+function tankSaveIds() { localStorage.setItem(LS_TANK_DEVICES, JSON.stringify(Object.keys(_tankDevices))); }
+
+function tankRemoveDevice(id) {
+  const entry = _tankDevices[id];
+  if (!entry) return;
+  if (!confirm(`Remove tank sensor "${entry.name}"?`)) return;
+  try { entry.device.gatt.disconnect(); } catch(e) {}
+  delete _tankDevices[id];
+  tankSaveIds();
+  tankRender();
+}
+
+async function tankInit() {
+  if (!tankSupported()) {
+    const el = document.getElementById('tank-unsupported'); if (el) el.style.display = 'block';
+    const btn = document.getElementById('tank-add-btn'); if (btn) btn.disabled = true;
+    return;
+  }
+  if (navigator.bluetooth.getDevices) {
+    try {
+      const devices = await navigator.bluetooth.getDevices();
+      devices.forEach(device => {
+        _tankDevices[device.id] = { name: device.name || 'Tank Sensor', device, data:null, connected:false, reconnecting:false };
+        tankConnectDevice(device);
+      });
+      tankRender();
+    } catch(e) { console.warn('Tank device restore failed:', e); }
+  }
+}
+
+function tankRender() {
+  const grid = document.getElementById('tank-grid');
+  if (!grid) return;
+  const ids = Object.keys(_tankDevices);
+  if (!ids.length) {
+    grid.innerHTML = `<div style="color:var(--text-dim);font-size:12px;padding:8px 2px;grid-column:1/-1;">No tank sensors connected. Tap "+ Add Tank Sensor" to pair one.</div>`;
+    return;
+  }
+  grid.innerHTML = ids.map(id => {
+    const e = _tankDevices[id];
+    const d = e.data;
+    const type = d ? d.type : 'U';
+    const color = TANK_TYPE_COLOR[type] || TANK_TYPE_COLOR.U;
+    const typeName = TANK_TYPE_NAME[type] || TANK_TYPE_NAME.U;
+    const sensors = d ? [d.s1, d.s2, d.s3, d.s4] : [null,null,null,null];
+    // s1 = lowest point sensor (25%) ... s4 = highest (100%); column-reverse stacks s1 at the bottom
+    const segments = sensors.map(s => `<div style="flex:1;border-radius:3px;background:${s===100?color:'rgba(255,255,255,.08)'};transition:background .3s;"></div>`).join('');
+    const filledCount = sensors.filter(s=>s===100).length;
+    const pctLabel = d ? `~${filledCount*25}%` : '—';
+    const statusText = e.reconnecting ? 'Reconnecting…' : (e.connected ? 'Connected' : 'Disconnected');
+    const statusColor = e.reconnecting ? 'var(--warn)' : (e.connected ? 'var(--good)' : 'var(--danger)');
+    const battTxt = d && d.batt != null ? d.batt + '%' : '—';
+    const updatedTxt = e.lastUpdate ? new Date(e.lastUpdate).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit'}) : '—';
+    return `<div class="vrm-card" style="padding:16px 18px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <span class="sys-pill" style="background:${color}22;color:${color};border-color:${color}55;"><span class="sys-dot" style="background:${color};"></span>${typeName}</span>
+        <button class="icon-btn" onclick="tankRemoveDevice('${id}')" title="Remove" style="color:var(--danger);">✕</button>
+      </div>
+      <div style="display:flex;flex-direction:column-reverse;gap:4px;height:110px;margin-bottom:10px;">${segments}</div>
+      <div style="text-align:center;font-family:'DM Mono',monospace;font-size:22px;font-weight:500;margin-bottom:10px;">${pctLabel}</div>
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-dim);">
+        <span style="color:${statusColor};">● ${statusText}</span>
+        <span>🔋 ${battTxt}</span>
+      </div>
+      <div style="font-size:10px;color:var(--text-dim);margin-top:6px;text-align:right;">Updated ${updatedTxt}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── DOCUMENTS ──
+const DOCS = [
+  { title: 'Solar Architecture Wiring Diagram', file: 'solar-architecture-wiring-diagram.pdf' },
+  { title: 'Insurance Card', file: 'insurance-card.pdf' },
+];
+
+let docReorderMode = false;
+let docDragSrcFile = null;
+
+function docsSorted() {
+  const order = (CONFIG.docOrder && CONFIG.docOrder.length) ? CONFIG.docOrder : DOCS.map(d=>d.file);
+  const ordered = order.map(f=>DOCS.find(d=>d.file===f)).filter(Boolean);
+  const rest = DOCS.filter(d=>!order.includes(d.file));
+  return ordered.concat(rest);
+}
+
+function docBuildGrid() {
+  const grid = document.getElementById('doc-grid');
+  if (!grid) return;
+  const sorted = docsSorted();
+  if (!sorted.length) {
+    grid.innerHTML = `<div style="color:var(--text-dim);font-size:12px;padding:8px 2px;grid-column:1/-1;">No documents yet.</div>`;
+    return;
+  }
+  grid.innerHTML = sorted.map(d => `
+    <div class="vrm-card doc-tile" draggable="${docReorderMode}"
+      ondragstart="docDragStart(event,'${d.file}')" ondragover="docDragOver(event,'${d.file}')"
+      ondrop="docDrop(event,'${d.file}')" ondragend="docDragEnd(event)"
+      style="padding:20px 16px;text-align:center;cursor:${docReorderMode?'grab':'pointer'};position:relative;"
+      onclick="if(!docReorderMode) docOpen('${d.file}','${d.title.replace(/'/g,"\\'")}')">
+      ${docReorderMode ? `<div style="position:absolute;top:8px;left:10px;color:var(--text-dim);font-size:14px;">⠿</div>` : ''}
+      <div style="font-size:36px;margin-bottom:10px;">📄</div>
+      <div style="font-size:13px;font-weight:500;">${d.title}</div>
+    </div>`).join('');
+}
+
+function toggleDocReorderMode() {
+  docReorderMode = !docReorderMode;
+  const btn = document.getElementById('doc-reorder-btn');
+  btn.classList.toggle('active', docReorderMode);
+  btn.textContent = docReorderMode ? '✓ Done' : '⠿ Reorder';
+  docBuildGrid();
+}
+
+function docDragStart(e, file) {
+  if (!docReorderMode) { e.preventDefault(); return; }
+  docDragSrcFile = file;
+  e.dataTransfer.effectAllowed = 'move';
+  setTimeout(()=>{ e.target.classList.add('dragging'); }, 0);
+}
+
+function docDragOver(e, file) {
+  if (!docReorderMode || file===docDragSrcFile) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  document.querySelectorAll('.doc-tile').forEach(el=>el.classList.remove('drag-over'));
+  e.currentTarget.classList.add('drag-over');
+}
+
+function docDrop(e, targetFile) {
+  if (!docReorderMode || targetFile===docDragSrcFile) return;
+  e.preventDefault();
+  const order = docsSorted().map(d=>d.file);
+  const srcIdx = order.indexOf(docDragSrcFile);
+  const tgtIdx = order.indexOf(targetFile);
+  order.splice(srcIdx,1);
+  order.splice(tgtIdx,0,docDragSrcFile);
+  CONFIG.docOrder = order;
+  saveAll();
+  docBuildGrid();
+}
+
+function docDragEnd(e) {
+  document.querySelectorAll('.doc-tile').forEach(el=>el.classList.remove('dragging','drag-over'));
+  docDragSrcFile = null;
+}
+
+function docOpen(file, title) {
+  document.getElementById('doc-overlay-title').textContent = title;
+  document.getElementById('doc-frame').src = '/docs/' + file;
+  document.getElementById('doc-overlay').style.display = 'flex';
+}
+function docClose() {
+  document.getElementById('doc-overlay').style.display = 'none';
+  document.getElementById('doc-frame').src = 'about:blank';
+}
+
 // ── INIT ──
 loadAll();
 applyConfig();
@@ -2545,6 +3054,13 @@ refreshSystemDropdowns();
 refreshCompDatalist();
 recalcHrs();
 refreshAll();
+tankInit();
+docBuildGrid();
+// Deep link: ?tab=weather or ?tab=intervals (maintenance sub-tabs) opens directly to that tab
+(function(){
+  var deepTab = new URLSearchParams(location.search).get('tab');
+  if (deepTab) switchTab(deepTab);
+})();
 updateClock();
 setInterval(updateClock, 1000);
 // Seed Windy from cached GPS so map is ready before first VRM poll

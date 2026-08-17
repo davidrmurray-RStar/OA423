@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MyDashboard — User Guide</title>
+<title>MaintOverview — User Guide</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -143,9 +143,9 @@
   <!-- HERO -->
   <div class="hero">
     <div class="hero-eyebrow">Sunset Serenade · OA 423</div>
-    <h1 class="hero-title">My<span>Dashboard</span></h1>
+    <h1 class="hero-title">Maint<span>Overview</span></h1>
     <div class="hero-sub">Vessel Maintenance — iPad App User Guide</div>
-    <div class="hero-ver">Version 2.0.0 · Data Schema v2 · by Captain David</div>
+    <div class="hero-ver">Version 3.2.0 · Data Schema v2 · by Captain David</div>
     <div class="chips">
       <span class="chip chip-local">Runs Locally</span>
       <span class="chip chip-port">Port Engine</span>
@@ -166,6 +166,7 @@
       <a href="#overview">Overview Tab</a>
       <a href="#log">Log Tab</a>
       <a href="#intervals">Intervals Tab</a>
+      <a href="#spares">Spares Tab</a>
       <a href="#settings">Settings</a>
       <a href="#storage">Data &amp; Storage</a>
       <a href="#connectivity">Connectivity</a>
@@ -196,7 +197,7 @@
               <div class="method">
                 <div class="method-label">AirDrop — Easiest</div>
                 <ol>
-                  <li>Right-click <code>MyDashboard.html</code> on your Mac → Share → AirDrop</li>
+                  <li>Right-click <code>MaintOverview.html</code> on your Mac → Share → AirDrop</li>
                   <li>Select your iPad</li>
                   <li>Tap <strong>Accept</strong> — opens in Safari automatically</li>
                 </ol>
@@ -250,10 +251,10 @@
   <section id="upgrade">
     <div class="eyebrow">Updates</div>
     <h2>Upgrading the App</h2>
-    <p>When a new version of <code>MyDashboard.html</code> is available:</p>
+    <p>When a new version of <code>MaintOverview.html</code> is available:</p>
     <div class="code-block">
       <div>Export Backup first — Settings → Export Backup → save the .json file</div>
-      <div>Replace MyDashboard.html (AirDrop, email, or iCloud)</div>
+      <div>Replace MaintOverview.html (AirDrop, email, or iCloud)</div>
       <div>Open the new file in Safari → Add to Home Screen</div>
       <div>Your data loads automatically from localStorage — nothing is overwritten</div>
       <div>Confirm version in Settings footer</div>
@@ -385,6 +386,38 @@
     </div>
   </section>
 
+  <!-- SPARES -->
+  <section id="spares">
+    <div class="tab-block">
+      <div class="tab-hd">
+        <div class="tab-icon" style="background:rgba(127,155,176,.12);">🔧</div>
+        <div>
+          <div class="tab-name">Spares</div>
+          <div class="tab-desc">Spare parts inventory — what you have, where it's from, and where it's stored</div>
+        </div>
+      </div>
+      <div class="tab-body">
+        <p><strong>Filter pills</strong> — tap "All" or any component pill to filter to spares tagged with that component.</p>
+        <p><strong>+ Add Spare</strong></p>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Field</th><th>Required</th><th>Notes</th></tr></thead>
+            <tbody>
+              <tr><td>Component</td><td><span class="req">✅</span></td><td>Matches the component list used on Overview, Log, and Intervals</td></tr>
+              <tr><td>Description</td><td><span class="req">✅</span></td><td>e.g. "Raw water impeller"</td></tr>
+              <tr><td>Part #</td><td>—</td><td>e.g. Sherwood 1700K</td></tr>
+              <tr><td>Qty on Hand</td><td>—</td><td>Number currently in stock</td></tr>
+              <tr><td>Sourced</td><td>—</td><td>Where you buy it, e.g. West Marine, NAPA, Amazon</td></tr>
+              <tr><td>Last Paid</td><td>—</td><td>Price paid last time, shown as currency</td></tr>
+              <tr><td>Stored</td><td>—</td><td>Where it lives on board, e.g. "Engine Room Locker 2"</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p><strong>✎ Edit</strong> — opens the spare prefilled for editing. <strong>✕ Delete</strong> — removes it, with confirmation.</p>
+      </div>
+    </div>
+  </section>
+
   <!-- SETTINGS -->
   <section id="settings">
     <div class="eyebrow">Configuration</div>
@@ -422,6 +455,7 @@
       <div class="key-card"><div class="key-name">ss_intervals</div><div class="key-desc">Service intervals</div></div>
       <div class="key-card"><div class="key-name">ss_manual_hrs</div><div class="key-desc">Manual engine hour overrides</div></div>
       <div class="key-card"><div class="key-name">ss_config</div><div class="key-desc">Boat name, vessel ID, theme, section order</div></div>
+      <div class="key-card"><div class="key-name">ss_spares</div><div class="key-desc">Spare parts inventory</div></div>
       <div class="key-card"><div class="key-name">ss_systems</div><div class="key-desc">Configurable system list with colors</div></div>
       <div class="key-card"><div class="key-name">ss_components</div><div class="key-desc">Configurable component dropdown list</div></div>
       <div class="key-card"><div class="key-name">ss_data_version</div><div class="key-desc">Schema version for migrations</div></div>
@@ -429,7 +463,7 @@
     <h3>Upgrade workflow</h3>
     <div class="code-block">
       <div>Export Backup (Settings)</div>
-      <div>Replace MyDashboard.html on device</div>
+      <div>Replace MaintOverview.html on device</div>
       <div>Re-add to Home Screen if needed</div>
       <div>Open app — data loads untouched</div>
       <div>Confirm version in Settings footer</div>
@@ -456,6 +490,8 @@
       <div class="qr-row"><span class="qr-action">Update current engine hours</span><span class="qr-where">Overview → ⏱ Update Engine Hours</span></div>
       <div class="qr-row"><span class="qr-action">Add a service interval</span><span class="qr-where">Intervals tab → + Add Interval</span></div>
       <div class="qr-row"><span class="qr-action">Edit or delete an interval</span><span class="qr-where">Intervals tab → ✎ or ✕ on the row</span></div>
+      <div class="qr-row"><span class="qr-action">Add a spare part</span><span class="qr-where">Spares tab → + Add Spare</span></div>
+      <div class="qr-row"><span class="qr-action">Edit or delete a spare part</span><span class="qr-where">Spares tab → ✎ or ✕ on the row</span></div>
       <div class="qr-row"><span class="qr-action">Reorder overview sections</span><span class="qr-where">Overview → ⠿ Reorder</span></div>
       <div class="qr-row"><span class="qr-action">Filter components section</span><span class="qr-where">Overview → Components → pill row</span></div>
       <div class="qr-row"><span class="qr-action">Add / remove / recolor systems</span><span class="qr-where">Settings → Systems</span></div>
@@ -479,7 +515,7 @@
     </div>
 
     <h3>Personal Use Only</h3>
-    <p>MyDashboard is provided for personal, non-commercial use only. This application is a personal maintenance tracking tool created for private vessel use. It is not intended for commercial purposes, resale, redistribution, or use as a professional marine maintenance system.</p>
+    <p>MaintOverview is provided for personal, non-commercial use only. This application is a personal maintenance tracking tool created for private vessel use. It is not intended for commercial purposes, resale, redistribution, or use as a professional marine maintenance system.</p>
 
     <h3>No Warranty</h3>
     <p>This application is provided <strong>"as is"</strong>, without warranty of any kind, express or implied. The author makes no representations or warranties regarding the accuracy, completeness, reliability, or suitability of this application for any purpose. Use of this application for vessel maintenance scheduling, interval tracking, or any other purpose is entirely at your own risk.</p>
@@ -503,14 +539,14 @@
     <p>By using this application, you acknowledge that you have read, understood, and agree to these terms. If you do not agree, do not use this application.</p>
 
     <div style="margin-top:20px;padding:16px 18px;background:rgba(255,255,255,.03);border:.5px solid var(--border);border-radius:var(--radius);font-size:12px;color:var(--text-dim);font-family:'DM Mono',monospace;line-height:1.8;">
-      MyDashboard · Personal Vessel Maintenance Tracker<br>
+      MaintOverview · Personal Vessel Maintenance Tracker<br>
       &copy; Captain David · All rights reserved<br>
       For personal use only · No warranty expressed or implied
     </div>
   </section>
 
   <footer>
-    <span>Sunset Serenade · OA 423 · MyDashboard v2.0.0</span>
+    <span>Sunset Serenade · OA 423 · MaintOverview v3.2.0</span>
     <span>Built with Claude · Anthropic</span>
   </footer>
 

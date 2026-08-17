@@ -10,3 +10,6 @@ docs/
 
 # VRM token — must only ever exist as an env var / on-device file
 vrm_token.txt
+
+# go2rtc binary (platform-specific, downloaded per-device, not source)
+/go2rtc

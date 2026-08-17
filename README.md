@@ -1,4 +1,4 @@
-# Vessel Dashboard
+# Vessel Maintenance Dashboard
 ### iPad App — Installation & User Guide
 
 ---
@@ -16,7 +16,7 @@ A self-contained vessel maintenance log that runs as a full-screen app on your i
 Choose any of these methods:
 
 **AirDrop (easiest)**
-1. On your Mac, right-click `maintenance_dashboard.html` → Share → AirDrop
+1. On your Mac, right-click `MaintOverview.html` → Share → AirDrop
 2. Select your iPad from the AirDrop list
 3. On the iPad, tap Accept — the file opens in Safari automatically
 
@@ -153,6 +153,28 @@ Manages which components are tracked against a service interval. Each interval d
 
 ---
 
+### Spares
+
+Tracks spare parts inventory — what you have on board, where it came from, and where it's stored.
+
+**Filter pills** — tap "All" or any component pill to filter to spares tagged with that component.
+
+**+ Add Spare** — logs a spare part. Fields:
+
+| Field | Required | Notes |
+|---|---|---|
+| Component | ✅ | e.g. Oil, Impeller, Zinc — matches the component list used elsewhere |
+| Description | ✅ | e.g. "Raw water impeller" |
+| Part # | — | e.g. Sherwood 1700K |
+| Qty on Hand | — | Number currently in stock |
+| Sourced | — | Where you buy it, e.g. West Marine, NAPA, Amazon |
+| Last Paid | — | Price paid last time, shown as currency |
+| Stored | — | Where it lives on board, e.g. "Engine Room Locker 2" |
+
+**Editing a spare** — tap ✎ on any row to edit. **Deleting a spare** — tap ✕, with confirmation.
+
+---
+
 ### Settings (⚙)
 
 | Setting | Description |
@@ -180,6 +202,7 @@ All data is stored in **Safari's local storage** for this file. This means:
 | Service intervals | `ss_intervals` |
 | Manual engine hours overrides | `ss_manual_hrs` |
 | Settings (boat name, vessel ID) | `ss_config` |
+| Spare parts inventory | `ss_spares` |
 
 ### Backing up your data
 
@@ -208,6 +231,8 @@ After Safari caches these, the app runs fully offline. If you need a completely 
 | Update current engine hours | Overview tab → ⏱ Update Engine Hours |
 | Add a service interval | Intervals tab → + Add Interval |
 | Edit or delete an interval | Intervals tab → ✎ or ✕ on the row |
+| Add a spare part | Spares tab → + Add Spare |
+| Edit or delete a spare part | Spares tab → ✎ or ✕ on the row |
 | Change boat name or vessel ID | ⚙ gear icon (upper right) |
 | Collapse/expand overview sections | Tap the section header |
 

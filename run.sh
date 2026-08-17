@@ -7,6 +7,7 @@ cp ~/storage/shared/OA423/vrm_dashboard.py ~/vrm-dashboard/vrm_dashboard.py 2>/d
 cp ~/storage/shared/OA423/MyDashboard.html ~/MyDashboard.html             2>/dev/null || true
 cp ~/storage/shared/OA423/go2rtc.yaml      ~/go2rtc.yaml                  2>/dev/null || true
 cp -r ~/storage/shared/OA423/assets        ~/assets                        2>/dev/null || true
+cp -r ~/storage/shared/OA423/docs          ~/docs                          2>/dev/null || true
 
 # Start go2rtc if not already running
 if pgrep -f go2rtc > /dev/null 2>&1; then

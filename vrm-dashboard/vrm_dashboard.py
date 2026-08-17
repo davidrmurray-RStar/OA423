@@ -47,7 +47,7 @@ TOKEN_KIND = os.environ.get("VRM_TOKEN_KIND", "Token").strip()
 PORT = int(os.environ.get("PORT", "8787"))  # 0 = let the OS pick a free port
 
 # Cerbo GX direct MQTT bridge
-CERBO_HOST = os.environ.get("CERBO_HOST", "192.168.0.101")
+CERBO_HOST = os.environ.get("CERBO_HOST", "192.168.0.55")
 CERBO_MQTT_PORT = int(os.environ.get("CERBO_MQTT_PORT", "1883"))
 CERBO_PORTAL_ID = os.environ.get("CERBO_PORTAL_ID", "c0619abb114f")
 
@@ -248,6 +248,13 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(200, f.read_bytes(), "application/javascript")
             return self._send(404, b"not found", "text/plain")
 
+        if path.startswith("/docs/"):
+            fname = Path(path[len("/docs/"):]).name  # strip any directory traversal
+            f = HERE.parent / "docs" / fname
+            if f.exists() and f.suffix.lower() == ".pdf":
+                return self._send(200, f.read_bytes(), "application/pdf")
+            return self._send(404, b"not found", "text/plain")
+
         if path == "/api/live":
             with _live_lock:
                 data = dict(_live_cache)
@@ -311,7 +318,7 @@ def main():
               '  then:  export VRM_TOKEN="your-token"  and re-run.', file=sys.stderr)
         sys.exit(1)
     _mqtt_bridge_start()
-    server = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
+    server = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
     url = f"http://localhost:{server.server_address[1]}/"
     try:
         URL_FILE.write_text(url)
