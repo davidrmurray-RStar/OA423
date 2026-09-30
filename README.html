@@ -262,6 +262,16 @@
     </div>
     <p>If the new version includes a data schema change, migrations run automatically before any data is touched. The version footer in Settings shows <code>VERSION x.x.x · DATA vx</code>.</p>
     <div class="callout red"><span class="callout-icon">⚠️</span><div class="callout-body"><strong>If something goes wrong:</strong> use Import Backup in Settings to restore from the <code>.json</code> file exported in step 1.</div></div>
+    <h3>Android tablet (Termux) — automatic updates</h3>
+    <p><code>run.sh</code> pulls the latest code from GitHub (<code>davidrmurray-RStar/OA423</code>, <code>main</code>) every time it runs — no manual file copying.</p>
+    <div class="code-block">
+      <div>First run: installs git if needed, clones the repo to ~/OA423-repo</div>
+      <div>Every run: git pull → copies MyDashboard.html, assets/, vrm_dashboard.py, run.sh into place</div>
+      <div>Server restarts automatically if new code arrived — then reload the page</div>
+      <div>Offline: skips the pull and uses the last copy (or shared storage /OA423)</div>
+      <div>Secrets and PDFs stay local: vrm_token.txt, go2rtc.yaml, docs/ still come from shared storage /OA423</div>
+      <div>Also runs termux-wake-lock so Android doesn't sleep the server overnight</div>
+    </div>
   </section>
 
   <!-- INTERFACE -->

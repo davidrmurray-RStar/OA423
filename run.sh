@@ -1,15 +1,48 @@
 #!/data/data/com.termux/files/usr/bin/bash
+# OA423 dashboard launcher (Termux).
+# Code (HTML, assets, server) auto-updates from GitHub; secrets and docs come from shared storage.
 
-# Sync latest files from shared storage (non-fatal if sdcard unavailable)
-mkdir -p ~/vrm-dashboard
-cp ~/storage/shared/OA423/vrm_token.txt   ~/vrm-dashboard/vrm_token.txt  2>/dev/null || true
-cp ~/storage/shared/OA423/vrm_dashboard.py ~/vrm-dashboard/vrm_dashboard.py 2>/dev/null || true
-cp ~/storage/shared/OA423/MyDashboard.html ~/MyDashboard.html             2>/dev/null || true
-cp ~/storage/shared/OA423/go2rtc.yaml      ~/go2rtc.yaml                  2>/dev/null || true
-cp -r ~/storage/shared/OA423/assets        ~/assets                        2>/dev/null || true
-cp -r ~/storage/shared/OA423/docs          ~/docs                          2>/dev/null || true
+REPO_URL="https://github.com/davidrmurray-RStar/OA423.git"
+REPO=~/OA423-repo
+SHARED=~/storage/shared/OA423
 
-# Start go2rtc if not already running
+# Keep Android from sleeping Termux overnight
+command -v termux-wake-lock >/dev/null 2>&1 && termux-wake-lock
+
+mkdir -p ~/vrm-dashboard ~/assets ~/docs
+
+# ── 1. Pull latest code from GitHub (non-fatal if offline) ──
+command -v git >/dev/null 2>&1 || pkg install -y git >/dev/null 2>&1 || true
+OLD_REV=""; NEW_REV=""
+if command -v git >/dev/null 2>&1; then
+  if [ -d "$REPO/.git" ]; then
+    OLD_REV=$(git -C "$REPO" rev-parse HEAD 2>/dev/null)
+    timeout 60 git -C "$REPO" pull --ff-only -q 2>/dev/null && echo "Code updated from GitHub" || echo "GitHub pull skipped (offline?)"
+  else
+    timeout 120 git clone -q --depth 1 "$REPO_URL" "$REPO" 2>/dev/null && echo "Cloned OA423 from GitHub" || echo "GitHub clone skipped (offline?)"
+  fi
+  NEW_REV=$(git -C "$REPO" rev-parse HEAD 2>/dev/null)
+fi
+
+# ── 2. Install code: GitHub copy if available, else shared storage ──
+if [ -f "$REPO/MyDashboard.html" ]; then SRC="$REPO"; else SRC="$SHARED"; fi
+cp "$SRC/MyDashboard.html"                ~/MyDashboard.html               2>/dev/null || true
+cp "$SRC/MaintOverview.html"              ~/MaintOverview.html             2>/dev/null || true
+cp "$SRC/SS_app.jpg"                      ~/SS_app.jpg                     2>/dev/null || true
+cp -r "$SRC/assets/."                     ~/assets/                        2>/dev/null || true
+if [ "$SRC" = "$REPO" ]; then
+  cp "$REPO/vrm-dashboard/vrm_dashboard.py" ~/vrm-dashboard/vrm_dashboard.py 2>/dev/null || true
+  cp "$REPO/run.sh"                         ~/run.sh.new                     2>/dev/null && mv ~/run.sh.new ~/run.sh && chmod +x ~/run.sh
+else
+  cp "$SHARED/vrm_dashboard.py"             ~/vrm-dashboard/vrm_dashboard.py 2>/dev/null || true
+fi
+
+# ── 3. Secrets + docs always from shared storage (never in GitHub) ──
+cp "$SHARED/vrm_token.txt" ~/vrm-dashboard/vrm_token.txt 2>/dev/null || true
+cp "$SHARED/go2rtc.yaml"   ~/go2rtc.yaml                 2>/dev/null || true
+cp -r "$SHARED/docs/."     ~/docs/                       2>/dev/null || true
+
+# ── 4. go2rtc ──
 if pgrep -f go2rtc > /dev/null 2>&1; then
   echo "go2rtc already running"
 else
@@ -17,9 +50,14 @@ else
   echo "go2rtc started"
 fi
 
-# Start VRM dashboard with auto-restart loop (runs in background)
+# ── 5. VRM dashboard server (auto-restart loop) ──
 if pgrep -f vrm_dashboard > /dev/null 2>&1; then
-  echo "VRM dashboard already running at http://localhost:8787/"
+  if [ -n "$OLD_REV" ] && [ "$OLD_REV" != "$NEW_REV" ]; then
+    pkill -f "python3 vrm_dashboard.py"   # loop restarts it with the new code in ~3s
+    echo "VRM dashboard restarting with new code"
+  else
+    echo "VRM dashboard already running at http://localhost:8787/"
+  fi
 else
   nohup bash -c '
     export VRM_TOKEN="$(cat ~/vrm-dashboard/vrm_token.txt)"
