@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="/assets/chart.umd.js"></script>
 <script src="/assets/echarts.min.js"></script>
 <style>
   :root {
@@ -1014,7 +1014,7 @@ function recalcHrs() {
 }
 
 // ── CONFIG ──
-const APP_VERSION  = '6.9.1';  // v6.9.1 — ?tab= deep link
+const APP_VERSION  = '6.9.2';  // v6.9.2 — overnight self-heal (wake recovery, fetch timeouts, camera auto-reconnect)
 const DATA_VERSION = '2';      // bumps when storage schema changes
 
 function setTheme(mode) {
@@ -1943,7 +1943,7 @@ function buildIntervals() {
     return s.sys.replace(' Engine','').replace('Generator','Gen')+' '+s.comp+' ('+unit+')';
   });
   if (intChartInst) intChartInst.destroy();
-  if (!statuses.length) return;
+  if (!statuses.length || typeof Chart === 'undefined') return;  // never let a missing chart lib kill init
   intChartInst=new Chart(document.getElementById('intChart'),{
     type:'bar',
     data:{labels,datasets:[
@@ -2089,13 +2089,19 @@ function vrmSiteLL(records) {
   const a = num(la), b = num(lo);
   return (isFinite(a) && isFinite(b)) ? [a, b] : null;
 }
+// fetch with timeout — a hung request (Wi-Fi drop, tablet sleep) can't stall the dashboard
+function fetchT(url, ms, opts) {
+  const c = new AbortController();
+  const t = setTimeout(() => c.abort(), ms || 8000);
+  return fetch(url, Object.assign({ signal: c.signal }, opts || {})).finally(() => clearTimeout(t));
+}
 async function vrmFetchWeather() {
   try {
     const ll = vrmSiteLL(vrmRecords) || [VRM_WEATHER.lat, VRM_WEATHER.lon];
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${ll[0]}&longitude=${ll[1]}` +
       `&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m` +
       `&temperature_unit=${VRM_WEATHER.tempUnit}&wind_speed_unit=${VRM_WEATHER.windUnit}`;
-    const d = await (await fetch(url)).json();
+    const d = await (await fetchT(url, 15000)).json();
     vrmWeather = (d && d.current) ? Object.assign({units: d.current_units || {}}, d.current) : {error:'no data'};
   } catch(e) { vrmWeather = {error: e.message}; }
   vrmRender(vrmRecords);
@@ -2477,7 +2483,7 @@ async function vrmTick() {
   const statusWrap = document.getElementById('vrm-status-wrap');
   const updatedEl  = document.getElementById('vrm-updated');
   try {
-    const res = await fetch('/api/diagnostics');
+    const res = await fetchT('/api/diagnostics', 35000);
     const data = await res.json();
     if (!res.ok || data.success === false) {
       const detail = (data && (data.errors || data.error)) ? JSON.stringify(data.errors || data.error) : ('HTTP ' + res.status);
@@ -2520,12 +2526,16 @@ function mqttInit() {
   liveTick();
   setInterval(liveTick, 1000);
 }
+var _liveBusy = false, _liveLastOk = 0;
 async function liveTick() {
+  if (_liveBusy) return;
+  _liveBusy = true;
   try {
-    var res = await fetch('/api/live');
+    var res = await fetchT('/api/live', 5000);
     var json = await res.json();
     if (!json.ok || !json.data) return;
     _mqttConnected = json.connected === true;
+    if (_mqttConnected) _liveLastOk = Date.now();
     var base = 'N/'+MQTT_PORTAL_ID+'/';
     Object.entries(json.data).forEach(function(e) {
       var path=e[0], value=e[1];
@@ -2533,6 +2543,8 @@ async function liveTick() {
     });
   } catch(e) {
     _mqttConnected = false;
+  } finally {
+    _liveBusy = false;
   }
 }
 
@@ -2757,7 +2769,11 @@ async function camStart(cam) {
     pc.oniceconnectionstatechange = () => {
       if (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected') {
         setBadge('Offline', 'var(--danger)');
-        setOver('Stream lost');
+        setOver('Stream lost — reconnecting…');
+        // auto-reconnect while the Cameras tab is open and this is still the current connection
+        setTimeout(() => {
+          if (_camPCs[cam.stream] === pc && pc.iceConnectionState !== 'connected' && appActiveTab() === 'cameras') camStart(cam);
+        }, 5000);
       }
     };
 
@@ -2837,7 +2853,10 @@ async function tankConnectDevice(device) {
   const entry = _tankDevices[id];
   entry.device = device;
   entry.name = device.name || entry.name;
-  device.addEventListener('gattserverdisconnected', () => tankOnDisconnect(id));
+  if (!entry.discListener) {
+    device.addEventListener('gattserverdisconnected', () => tankOnDisconnect(id));
+    entry.discListener = true;
+  }
   try {
     const server = await device.gatt.connect();
     const service = await server.getPrimaryService(TANK_SERVICE_UUID);
@@ -2845,7 +2864,10 @@ async function tankConnectDevice(device) {
     entry.char = char;
     entry.connected = true;
     entry.reconnecting = false;
-    char.addEventListener('characteristicvaluechanged', ev => tankHandleNotify(id, ev.target.value));
+    if (entry.notifyChar !== char) {
+      char.addEventListener('characteristicvaluechanged', ev => tankHandleNotify(id, ev.target.value));
+      entry.notifyChar = char;
+    }
     await char.startNotifications();
     try { tankHandleNotify(id, await char.readValue()); } catch(e) {}
     tankSaveIds();
@@ -3069,6 +3091,41 @@ setInterval(updateClock, 1000);
   if (cached) { try { var p=JSON.parse(cached); if(p.lat&&p.lon){ var f=document.getElementById('windy-frame'); if(f) f.src=windyUrl(p.lat.toFixed(5),p.lon.toFixed(5)); _gpsLat=p.lat; _gpsLon=p.lon; var st=document.getElementById('gps-status'); if(st) st.textContent=p.lat.toFixed(4)+'°  '+p.lon.toFixed(4)+'°'; } } catch(e){} }
 })();
 vrmInit();
+
+// ── OVERNIGHT SELF-HEAL ──
+// Screen-off / tablet sleep freezes timers and drops WebRTC + BLE links. On wake,
+// kick everything; after a long sleep (or if live data stays stale) reload to a clean state.
+const TAB_ORDER = ['live','weather','cameras','tanks','maintenance','documents'];
+function appActiveTab() {
+  const tabs = Array.from(document.querySelectorAll('.tab'));
+  const i = tabs.findIndex(t => t.classList.contains('active'));
+  return TAB_ORDER[i] || 'live';
+}
+function appSafeToReload() {
+  if (!['live','weather','cameras','tanks'].includes(appActiveTab())) return false;   // don't reload mid-edit on maintenance/docs
+  return !Array.from(document.querySelectorAll('.overlay')).some(o => getComputedStyle(o).display !== 'none');
+}
+function appReload() { location.replace(location.pathname + '?tab=' + appActiveTab()); }
+let _appHiddenAt = 0, _appDay = new Date().toDateString();
+const WAKE_RELOAD_MS  = 30 * 60 * 1000;  // asleep longer than this → reload on wake
+const STALE_RELOAD_MS = 5 * 60 * 1000;   // live data stale longer than this → reload
+function appHeal() {
+  liveTick(); vrmTick(); vrmFetchWeather();
+  if (appActiveTab() === 'cameras') camStartAll();
+  if (appActiveTab() === 'tanks') Object.keys(_tankDevices).forEach(id => { if (!_tankDevices[id].connected) tankReconnect(id); });
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { _appHiddenAt = Date.now(); return; }
+  if (_appHiddenAt && Date.now() - _appHiddenAt > WAKE_RELOAD_MS && appSafeToReload()) { appReload(); return; }
+  appHeal();
+});
+window.addEventListener('pageshow', e => { if (e.persisted) appHeal(); });
+window.addEventListener('online', appHeal);
+setInterval(() => {
+  const today = new Date().toDateString();
+  if (today !== _appDay) { _appDay = today; refreshAll(); }          // due/overdue dates roll over at midnight
+  if (!document.hidden && _liveLastOk && Date.now() - _liveLastOk > STALE_RELOAD_MS && appSafeToReload()) appReload();
+}, 30000);
 
 function toggleFullscreen() {
   const btn = document.getElementById('fs-btn');

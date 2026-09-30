@@ -475,7 +475,19 @@
   <section id="connectivity">
     <div class="eyebrow">Network</div>
     <h2>Connectivity</h2>
-    <p>Internet required on first load only, to fetch Google Fonts (Bebas Neue, DM Sans, DM Mono) and Chart.js. After Safari caches these, the app runs fully offline.</p>
+    <p>Chart.js and ECharts are bundled in <code>assets/</code> — the app loads and runs with no internet. Google Fonts (Bebas Neue, DM Sans, DM Mono) are the only remote asset; without them the app falls back to system fonts. Weather needs internet; live data needs the local server (<code>run.sh</code>) and the Cerbo GX on the LAN.</p>
+    <h3>Overnight / wake behavior (v6.9.2)</h3>
+    <p>Sleep freezes timers and drops camera and Bluetooth links. The app now recovers on its own:</p>
+    <ul>
+      <li><b>On wake:</b> live data, VRM, weather, cameras and tank sensors are re-polled / reconnected immediately.</li>
+      <li><b>Asleep &gt; 30 min:</b> the page reloads itself on wake, returning to the same tab.</li>
+      <li><b>Live data stale &gt; 5 min</b> while on screen: one automatic reload.</li>
+      <li><b>Camera stream lost:</b> auto-reconnects after 5 s while the Cameras tab is open.</li>
+      <li><b>Midnight:</b> due/overdue dates re-render for the new day.</li>
+      <li>Auto-reload only happens on Live, Weather, Cameras or Tanks with no dialog open — never mid-edit on Maintenance or Documents.</li>
+      <li>All network requests time out (5–35 s), so a hung request can't freeze a gauge.</li>
+    </ul>
+    <div class="callout blue"><span class="callout-icon">💡</span><div class="callout-body">Upgrade: copy both <code>MyDashboard.html</code> and <code>assets/chart.umd.js</code> — the page now loads Chart.js locally.</div></div>
     <div class="callout blue"><span class="callout-icon">💡</span><div class="callout-body">For a completely offline build with all assets embedded in the file, ask Claude to inline them.</div></div>
   </section>
 
