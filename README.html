@@ -502,6 +502,7 @@
     <ul>
       <li><b>Offline shell:</b> a service worker (<code>assets/sw.js</code>, served at <code>/sw.js</code>) keeps a cached copy of the page and its libraries, so the dashboard opens instead of a "site can't be reached" page. The server's copy always wins when it is reachable.</li>
       <li><b>Server comes back:</b> once the server answers after being unreachable for more than 15 s, the page reloads itself to a clean state (same safe-tab rule as below).</li>
+      <li><b>Start at boot:</b> <code>run.sh</code> installs <code>boot.sh</code> into <code>~/.termux/boot/</code>. With the Termux:Boot app installed (and opened once), the tablet starts the server and opens the dashboard by itself after a reboot. Log: <code>~/boot.log</code>.</li>
       <li><b>First use:</b> the page must be opened once with the server running after this update so the offline copy gets stored.</li>
     </ul>
     <div class="callout blue"><span class="callout-icon">💡</span><div class="callout-body">Upgrade: copy both <code>MyDashboard.html</code> and <code>assets/chart.umd.js</code> — the page now loads Chart.js locally.</div></div>

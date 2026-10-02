@@ -33,6 +33,9 @@ cp -r "$SRC/assets/."                     ~/assets/                        2>/de
 if [ "$SRC" = "$REPO" ]; then
   cp "$REPO/vrm-dashboard/vrm_dashboard.py" ~/vrm-dashboard/vrm_dashboard.py 2>/dev/null || true
   cp "$REPO/run.sh"                         ~/run.sh.new                     2>/dev/null && mv ~/run.sh.new ~/run.sh && chmod +x ~/run.sh
+  # start-at-boot script for the Termux:Boot app
+  mkdir -p ~/.termux/boot
+  cp "$REPO/boot.sh" ~/.termux/boot/oa423-boot.sh 2>/dev/null && chmod +x ~/.termux/boot/oa423-boot.sh
 else
   cp "$SHARED/vrm_dashboard.py"             ~/vrm-dashboard/vrm_dashboard.py 2>/dev/null || true
 fi
