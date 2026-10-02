@@ -248,6 +248,12 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(200, f.read_bytes(), "application/javascript")
             return self._send(404, b"not found", "text/plain")
 
+        if path == "/sw.js":
+            f = HERE.parent / "assets" / "sw.js"
+            if f.exists():
+                return self._send(200, f.read_bytes(), "application/javascript")
+            return self._send(404, b"not found", "text/plain")
+
         if path == "/assets/chart.umd.js":
             f = HERE.parent / "assets" / "chart.umd.js"
             if f.exists():

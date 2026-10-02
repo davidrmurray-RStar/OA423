@@ -1014,7 +1014,7 @@ function recalcHrs() {
 }
 
 // ── CONFIG ──
-const APP_VERSION  = '6.9.2';  // v6.9.2 — overnight self-heal (wake recovery, fetch timeouts, camera auto-reconnect)
+const APP_VERSION  = '6.9.3';  // v6.9.3 — reboot recovery (offline shell via service worker, server-back reload, boot watchdog)
 const DATA_VERSION = '2';      // bumps when storage schema changes
 
 function setTheme(mode) {
@@ -2526,16 +2526,20 @@ function mqttInit() {
   liveTick();
   setInterval(liveTick, 1000);
 }
-var _liveBusy = false, _liveLastOk = 0;
+var _liveBusy = false, _liveLastOk = 0, _srvDownSince = 0;
 async function liveTick() {
   if (_liveBusy) return;
   _liveBusy = true;
   try {
     var res = await fetchT('/api/live', 5000);
     var json = await res.json();
+    if (_srvDownSince) {                       // server just came back (e.g. browser started before Termux after a reboot)
+      var downMs = Date.now() - _srvDownSince; _srvDownSince = 0;
+      if (downMs > 15000 && typeof appServerBack === 'function') appServerBack();
+    }
     if (!json.ok || !json.data) return;
     _mqttConnected = json.connected === true;
-    if (_mqttConnected) _liveLastOk = Date.now();
+    if (_mqttConnected) { _liveLastOk = Date.now(); if (typeof appHealOk === 'function') appHealOk(); }
     var base = 'N/'+MQTT_PORTAL_ID+'/';
     Object.entries(json.data).forEach(function(e) {
       var path=e[0], value=e[1];
@@ -2543,6 +2547,7 @@ async function liveTick() {
     });
   } catch(e) {
     _mqttConnected = false;
+    if (!_srvDownSince) _srvDownSince = Date.now();
   } finally {
     _liveBusy = false;
   }
@@ -3106,10 +3111,17 @@ function appSafeToReload() {
   return !Array.from(document.querySelectorAll('.overlay')).some(o => getComputedStyle(o).display !== 'none');
 }
 function appReload() { location.replace(location.pathname + '?tab=' + appActiveTab()); }
-let _appHiddenAt = 0, _appDay = new Date().toDateString();
+let _appHiddenAt = document.hidden ? Date.now() : 0, _appDay = new Date().toDateString();
+const _appLoadedAt = Date.now();
+const LS_HEAL = 'oa423_heal_n';            // consecutive unhealthy reloads → backoff 5, 10, 20, 40, 60 min
+function appHealN() { try { return parseInt(localStorage.getItem(LS_HEAL), 10) || 0; } catch(e) { return 0; } }
+function appHealOk() { try { if (localStorage.getItem(LS_HEAL)) localStorage.removeItem(LS_HEAL); } catch(e) {} }
+function appServerBack() { if (appSafeToReload()) appReload(); else appHeal(); }
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
 const WAKE_RELOAD_MS  = 30 * 60 * 1000;  // asleep longer than this → reload on wake
 const STALE_RELOAD_MS = 5 * 60 * 1000;   // live data stale longer than this → reload
 function appHeal() {
+  window.dispatchEvent(new Event('resize'));   // gauges drawn while the screen was off have zero size
   liveTick(); vrmTick(); vrmFetchWeather();
   if (appActiveTab() === 'cameras') camStartAll();
   if (appActiveTab() === 'tanks') Object.keys(_tankDevices).forEach(id => { if (!_tankDevices[id].connected) tankReconnect(id); });
@@ -3124,7 +3136,12 @@ window.addEventListener('online', appHeal);
 setInterval(() => {
   const today = new Date().toDateString();
   if (today !== _appDay) { _appDay = today; refreshAll(); }          // due/overdue dates roll over at midnight
-  if (!document.hidden && _liveLastOk && Date.now() - _liveLastOk > STALE_RELOAD_MS && appSafeToReload()) appReload();
+  // no good live data since load / last OK → reload, backing off so a genuinely-off Cerbo doesn't loop
+  const n = appHealN(), wait = Math.min(STALE_RELOAD_MS * Math.pow(2, n), 60 * 60 * 1000);
+  if (!document.hidden && Date.now() - (_liveLastOk || _appLoadedAt) > wait && appSafeToReload()) {
+    try { localStorage.setItem(LS_HEAL, String(n + 1)); } catch(e) {}
+    appReload();
+  }
 }, 30000);
 
 function toggleFullscreen() {
