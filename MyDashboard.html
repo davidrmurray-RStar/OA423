@@ -426,11 +426,11 @@
         <!-- col 1: SOC on top, Battery Stats below (2/3) -->
         <div class="vrm-card" style="display:flex;flex-direction:column;gap:12px;">
           <div>
-            <div id="gc-soc" style="width:100%;height:400px;"></div>
+            <div id="gc-soc" style="width:100%;height:264px;"></div>
             <div class="vrm-card-label">Battery State of Charge</div>
           </div>
           <div>
-            <div id="gc-battery" style="width:100%;height:280px;"></div>
+            <div id="gc-battery" style="width:100%;height:185px;"></div>
             <div class="vrm-card-label">Battery Bank Stats</div>
             <div class="vrm-legend" id="vrm-battery-legend"></div>
           </div>
@@ -2192,7 +2192,7 @@ function vrmZoneStops(zones,min,max){
 var _vrmSocChart=null,_vrmSocReady=false,_vrmSocVal=0,_vrmSocState='',_vrmSocState2='',_vrmSocTTG='',_vrmSocVolt=NaN;
 (function(){
   if(!window.echarts)return;
-  var outerR=200,innerR=170,ptrInner=40,insideR=140,MAX=100;
+  var outerR=132,innerR=112,ptrInner=26,insideR=92,MAX=100;
   function gtxt(v){return(Math.max(0,v)/MAX*100).toFixed(0)+'%';}
   function renderItem(params,api){
     var soc=api.value(1);
@@ -2208,15 +2208,15 @@ var _vrmSocChart=null,_vrmSocReady=false,_vrmSocVal=0,_vrmSocState='',_vrmSocSta
     return{type:'group',children:[
       {type:'image',style:imgStyle,clipPath:{type:'sector',shape:{cx:cx,cy:cy,r:outerR,r0:innerR,startAngle:0,endAngle:end,transition:'endAngle',enterFrom:{endAngle:0}}}},
       {type:'image',style:imgStyle,clipPath:{type:'polygon',shape:{points:ptrPts(end)},extra:{end:end,transition:'end',enterFrom:{end:0}},during:function(d){d.setShape('points',ptrPts(d.getExtra('end')));}}},
-      {type:'circle',shape:{cx:cx,cy:cy,r:insideR},style:{fill:'#fff',shadowBlur:25,shadowColor:shadColor}},
-      {type:'text',extra:{val:soc,transition:'val',enterFrom:{val:0}},style:{text:gtxt(soc),fontSize:50,fontWeight:700,x:cx,y:cy-26,fill:pctColor,align:'center',verticalAlign:'middle',enterFrom:{opacity:0}},during:function(d){d.setStyle('text',gtxt(d.getExtra('val')));}},
+      {type:'circle',shape:{cx:cx,cy:cy,r:insideR},style:{fill:'#fff',shadowBlur:17,shadowColor:shadColor}},
+      {type:'text',extra:{val:soc,transition:'val',enterFrom:{val:0}},style:{text:gtxt(soc),fontSize:33,fontWeight:700,x:cx,y:cy-17,fill:pctColor,align:'center',verticalAlign:'middle',enterFrom:{opacity:0}},during:function(d){d.setStyle('text',gtxt(d.getExtra('val')));}},
       _vrmSocState2
         ? {type:'group',children:[
-            {type:'text',style:{text:'#1 '+(_vrmSocState||'–').toUpperCase(),fontSize:15,fontWeight:700,x:cx,y:cy+12,fill:stColor,align:'center',verticalAlign:'middle'}},
-            {type:'text',style:{text:'#2 '+(_vrmSocState2||'–').toUpperCase(),fontSize:15,fontWeight:700,x:cx,y:cy+32,fill:stColor,align:'center',verticalAlign:'middle'}}
+            {type:'text',style:{text:'#1 '+(_vrmSocState||'–').toUpperCase(),fontSize:10,fontWeight:700,x:cx,y:cy+8,fill:stColor,align:'center',verticalAlign:'middle'}},
+            {type:'text',style:{text:'#2 '+(_vrmSocState2||'–').toUpperCase(),fontSize:10,fontWeight:700,x:cx,y:cy+21,fill:stColor,align:'center',verticalAlign:'middle'}}
           ]}
-        : {type:'text',style:{text:(_vrmSocState||'').toUpperCase(),fontSize:22,fontWeight:700,x:cx,y:cy+22,fill:stColor,align:'center',verticalAlign:'middle'}},
-      {type:'text',style:{text:_vrmSocTTG?'TIME TO GO '+_vrmSocTTG:'',fontSize:14,fontWeight:600,x:cx,y:cy+56,fill:'rgb(120,135,165)',align:'center',verticalAlign:'middle'}}
+        : {type:'text',style:{text:(_vrmSocState||'').toUpperCase(),fontSize:15,fontWeight:700,x:cx,y:cy+15,fill:stColor,align:'center',verticalAlign:'middle'}},
+      {type:'text',style:{text:_vrmSocTTG?'TIME TO GO '+_vrmSocTTG:'',fontSize:9,fontWeight:600,x:cx,y:cy+37,fill:'rgb(120,135,165)',align:'center',verticalAlign:'middle'}}
     ]};
   }
   var el=document.getElementById('gc-soc');if(!el)return;
@@ -2240,8 +2240,8 @@ var _vrmBattChart=window.echarts?echarts.init(document.getElementById('gc-batter
 var _vrmGridChart=(window.echarts&&document.getElementById('gc-grid'))?echarts.init(document.getElementById('gc-grid')):null;
 var _vrmGrid2Chart=(window.echarts&&document.getElementById('gc-grid2'))?echarts.init(document.getElementById('gc-grid2')):null;
 function _vrmRing(spec,radius,offY){return{type:'gauge',radius:radius,startAngle:220,endAngle:-40,min:spec.min,max:spec.max,splitNumber:4,progress:{show:true,width:12,roundCap:true,itemStyle:{color:spec.color}},axisLine:{lineStyle:{width:12,color:[[1,'rgba(255,255,255,0.10)']]}},axisTick:{show:false},splitLine:{show:false},axisLabel:{show:false},pointer:{show:false},anchor:{show:false},title:{show:false},detail:{valueAnimation:true,offsetCenter:[0,offY],formatter:function(v){return isFinite(v)?v.toFixed(spec.dp)+' '+spec.unit:'–';},fontSize:22,fontWeight:700,color:spec.color},data:[{value:spec.value}]};}
-function _vrmZoneRing(spec){return{type:'gauge',radius:'100%',startAngle:220,endAngle:-40,min:spec.min,max:spec.max,splitNumber:Math.max(2,Math.round((spec.max-spec.min)*2)),axisLine:{lineStyle:{width:14,color:vrmZoneStops(spec.zones,spec.min,spec.max)}},progress:{show:false},pointer:{show:true,icon:'rect',width:6,length:'22%',offsetCenter:[0,'-86%'],itemStyle:{color:'#fff',borderColor:'#0f1216',borderWidth:1.5}},anchor:{show:false},axisTick:{show:true,splitNumber:5,distance:2,length:4,lineStyle:{color:'rgba(255,255,255,0.25)',width:1}},splitLine:{show:true,distance:2,length:14,lineStyle:{color:'rgba(255,255,255,0.30)',width:2}},axisLabel:{show:true,distance:22,color:'#8b95a4',fontSize:10,formatter:function(v){if(v<=spec.min)return spec.min+'-';if(v>=spec.max)return spec.max+'+';return(Math.abs(v-Math.round(v))<0.01)?v.toFixed(0):'';}} ,title:{show:false},detail:{valueAnimation:true,offsetCenter:[0,'-16%'],formatter:function(v){return isFinite(v)?v.toFixed(spec.dp)+' '+spec.unit:'–';},fontSize:22,fontWeight:700,color:'#e6e9ee'},data:[{value:spec.value}]};}
-function _vrmAmpRing(spec){return{type:'gauge',radius:'62%',startAngle:220,endAngle:-40,min:spec.min,max:spec.max,splitNumber:2,axisLine:{lineStyle:{width:10,color:[[1,'rgba(242,179,56,0.22)']]}},progress:{show:false},pointer:{show:true,icon:'rect',width:4,length:'20%',offsetCenter:[0,'-84%'],itemStyle:{color:'#f2b338',borderColor:'#0f1216',borderWidth:1}},anchor:{show:false},axisTick:{show:false},splitLine:{show:true,distance:2,length:10,lineStyle:{color:'rgba(255,255,255,0.30)',width:1.5}},axisLabel:{show:true,distance:-2,color:'#8b95a4',fontSize:9,formatter:function(v){return Math.round(v);}},title:{show:false},detail:{valueAnimation:true,offsetCenter:[0,'24%'],formatter:function(v){return isFinite(v)?v.toFixed(spec.dp)+' '+spec.unit:'–';},fontSize:22,fontWeight:700,color:spec.color},data:[{value:spec.value}]};}
+function _vrmZoneRing(spec){return{type:'gauge',radius:'100%',startAngle:220,endAngle:-40,min:spec.min,max:spec.max,splitNumber:Math.max(2,Math.round((spec.max-spec.min)*2)),axisLine:{lineStyle:{width:9,color:vrmZoneStops(spec.zones,spec.min,spec.max)}},progress:{show:false},pointer:{show:true,icon:'rect',width:4,length:'22%',offsetCenter:[0,'-86%'],itemStyle:{color:'#fff',borderColor:'#0f1216',borderWidth:1}},anchor:{show:false},axisTick:{show:true,splitNumber:5,distance:2,length:3,lineStyle:{color:'rgba(255,255,255,0.25)',width:1}},splitLine:{show:true,distance:2,length:9,lineStyle:{color:'rgba(255,255,255,0.30)',width:1.5}},axisLabel:{show:true,distance:15,color:'#8b95a4',fontSize:7,formatter:function(v){if(v<=spec.min)return spec.min+'-';if(v>=spec.max)return spec.max+'+';return(Math.abs(v-Math.round(v))<0.01)?v.toFixed(0):'';}} ,title:{show:false},detail:{valueAnimation:true,offsetCenter:[0,'-16%'],formatter:function(v){return isFinite(v)?v.toFixed(spec.dp)+' '+spec.unit:'–';},fontSize:15,fontWeight:700,color:'#e6e9ee'},data:[{value:spec.value}]};}
+function _vrmAmpRing(spec){return{type:'gauge',radius:'62%',startAngle:220,endAngle:-40,min:spec.min,max:spec.max,splitNumber:2,axisLine:{lineStyle:{width:7,color:[[1,'rgba(242,179,56,0.22)']]}},progress:{show:false},pointer:{show:true,icon:'rect',width:3,length:'20%',offsetCenter:[0,'-84%'],itemStyle:{color:'#f2b338',borderColor:'#0f1216',borderWidth:1}},anchor:{show:false},axisTick:{show:false},splitLine:{show:true,distance:2,length:7,lineStyle:{color:'rgba(255,255,255,0.30)',width:1}},axisLabel:{show:true,distance:-2,color:'#8b95a4',fontSize:6,formatter:function(v){return Math.round(v);}},title:{show:false},detail:{valueAnimation:true,offsetCenter:[0,'24%'],formatter:function(v){return isFinite(v)?v.toFixed(spec.dp)+' '+spec.unit:'–';},fontSize:15,fontWeight:700,color:spec.color},data:[{value:spec.value}]};}
 function vrmSetDual(chart,outer,inner){if(!chart)return;chart.setOption({series:[outer.zones?_vrmZoneRing(outer):_vrmRing(outer,'100%','-16%'),inner.bipolar?_vrmAmpRing(inner):_vrmRing(inner,'62%','24%')]});}
 
 function vrmBuildBattLegend(){
