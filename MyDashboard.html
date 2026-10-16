@@ -2531,6 +2531,17 @@ function vrmRender(records) {
       <div class="k-sub">${vrmEsc(subLabel)}</div></div>`;
   }).join('');
 }
+// The server's watchdog stops itself if no heartbeat arrives (STARTUP_GRACE 45s,
+// then IDLE_TIMEOUT). The heartbeat answers "is a tab still open?", which is
+// independent of whether the VRM *cloud* API is reachable — so start it as soon as
+// the page runs. Gating it on /api/diagnostics succeeding made any cloud outage or
+// stale token shut the local server down every ~45s, with run.sh restarting it 3s
+// later: a self-inflicted restart loop.
+function vrmStartHeartbeat() {
+  if (vrmHeartbeatInterval) return;
+  fetch('/heartbeat').catch(()=>{});
+  vrmHeartbeatInterval = setInterval(() => fetch('/heartbeat').catch(()=>{}), 3000);
+}
 async function vrmTick() {
   const statusWrap = document.getElementById('vrm-status-wrap');
   const updatedEl  = document.getElementById('vrm-updated');
@@ -2545,10 +2556,7 @@ async function vrmTick() {
     if (statusWrap) statusWrap.innerHTML = '';
     if (!vrmOnline) {
       vrmOnline = true;
-      if (!vrmHeartbeatInterval) {
-        vrmHeartbeatInterval = setInterval(() => fetch('/heartbeat').catch(()=>{}), 3000);
-        fetch('/heartbeat').catch(()=>{});
-      }
+      vrmStartHeartbeat();
     }
     vrmRecords = data.records || [];
     if (updatedEl) updatedEl.textContent = 'updated ' + new Date().toLocaleTimeString();
@@ -2857,6 +2865,7 @@ function vrmForceRefresh() {
   });
 }
 function vrmInit() {
+  vrmStartHeartbeat();
   vrmTick();
   setInterval(vrmTick, VRM_REFRESH_MS);
   vrmFetchWeather();
