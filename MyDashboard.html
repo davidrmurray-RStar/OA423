@@ -172,8 +172,11 @@
   .vrm-legend{display:flex;flex-wrap:wrap;gap:4px 10px;justify-content:center;margin-top:8px;}
   .vrm-legend span{display:flex;align-items:center;gap:4px;font-size:9px;color:var(--text-dim);}
   .vrm-gauge-row{display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-bottom:12px;}
-  .vrm-temp-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px;}
-  @media(max-width:640px){.vrm-gauge-row{grid-template-columns:1fr;}.vrm-temp-row{grid-template-columns:repeat(2,1fr);}}
+  /* temp row now lives inside the left gauge card, so spacing comes from that flex gap */
+  .vrm-temp-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+  /* full-width row under the main grid: Orion bars + MultiPlus totals */
+  .vrm-bottom-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
+  @media(max-width:640px){.vrm-gauge-row{grid-template-columns:1fr;}.vrm-temp-row{grid-template-columns:repeat(2,1fr);}.vrm-bottom-row{grid-template-columns:1fr;}}
 
   /* AC / CHARGER COLUMN — MultiPlus flip gauges + Skylla tab */
   .pw-tabs{display:flex;gap:4px;border-bottom:.5px solid var(--card-border);}
@@ -434,6 +437,13 @@
             <div class="vrm-card-label">Battery Bank Stats</div>
             <div class="vrm-legend" id="vrm-battery-legend"></div>
           </div>
+          <!-- temperature row: fills the space under the battery bank gauge -->
+          <div class="vrm-temp-row" id="vrm-temp-row">
+            <div class="vrm-card"><div id="gc-fridge"  style="width:100%;height:110px;"></div><div class="vrm-card-label">Fridge</div><div id="vrm-rh-fridge"  style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:3px;"></div></div>
+            <div class="vrm-card"><div id="gc-kitchen" style="width:100%;height:110px;"></div><div class="vrm-card-label">Kitchen</div><div id="vrm-rh-kitchen" style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:3px;"></div></div>
+            <div class="vrm-card"><div id="gc-vicroom" style="width:100%;height:110px;"></div><div class="vrm-card-label">VicRoom</div><div id="vrm-rh-vicroom" style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:3px;"></div></div>
+            <div class="vrm-card"><div id="gc-engroom" style="width:100%;height:110px;"></div><div class="vrm-card-label">Engine Room</div><div id="vrm-rh-engroom" style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:3px;"></div></div>
+          </div>
         </div>
         <!-- col 2: AC / charger tabs + Orion (1/3) -->
         <div style="display:flex;flex-direction:column;gap:12px;">
@@ -445,11 +455,6 @@
           <div class="pw-pane" id="pw-mp">
             <div class="vrm-card" id="mp0"></div>
             <div class="vrm-card" id="mp1"></div>
-            <div class="mp-t3">
-              <div class="mp-t"><div class="l">AC out</div><div class="v" id="mpTA">—</div></div>
-              <div class="mp-t"><div class="l">Shore draw</div><div class="v" id="mpTS">—</div></div>
-              <div class="mp-t"><div class="l">Load</div><div class="v" id="mpTW">—</div></div>
-            </div>
           </div>
           <!-- Skylla-IP65 pane -->
           <div class="pw-pane" id="pw-sk" hidden>
@@ -468,38 +473,39 @@
               </div>
             </div>
           </div>
-          <div class="vrm-card" style="padding:12px 16px;">
-            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">
-              <div class="vrm-card-label" style="margin:0;">Orion XS</div>
-              <div id="orion-state" style="font-size:10px;color:var(--text-dim);font-family:'DM Mono',monospace;">—</div>
+        </div>
+      </div>
+      <!-- bottom row: Orion XS bars + MultiPlus totals (where the temp gauges used to be) -->
+      <div class="vrm-bottom-row">
+        <div class="vrm-card" style="padding:12px 16px;">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">
+            <div class="vrm-card-label" style="margin:0;">Orion XS</div>
+            <div id="orion-state" style="font-size:10px;color:var(--text-dim);font-family:'DM Mono',monospace;">—</div>
+          </div>
+          <div style="margin-bottom:8px;">
+            <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-dim);margin-bottom:3px;">
+              <span style="letter-spacing:.5px;">OUT V</span>
+              <span id="orion-v-val" style="font-family:'DM Mono',monospace;">—</span>
             </div>
-            <div style="margin-bottom:8px;">
-              <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-dim);margin-bottom:3px;">
-                <span style="letter-spacing:.5px;">OUT V</span>
-                <span id="orion-v-val" style="font-family:'DM Mono',monospace;">—</span>
-              </div>
-              <div style="height:5px;background:rgba(255,255,255,0.07);border-radius:3px;overflow:hidden;">
-                <div id="orion-v-bar" style="height:100%;width:0%;background:#36c2a4;border-radius:3px;transition:width .6s ease;"></div>
-              </div>
+            <div style="height:5px;background:rgba(255,255,255,0.07);border-radius:3px;overflow:hidden;">
+              <div id="orion-v-bar" style="height:100%;width:0%;background:#36c2a4;border-radius:3px;transition:width .6s ease;"></div>
             </div>
-            <div>
-              <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-dim);margin-bottom:3px;">
-                <span style="letter-spacing:.5px;">OUT A</span>
-                <span id="orion-a-val" style="font-family:'DM Mono',monospace;">—</span>
-              </div>
-              <div style="height:5px;background:rgba(255,255,255,0.07);border-radius:3px;overflow:hidden;">
-                <div id="orion-a-bar" style="height:100%;width:0%;background:#f2b338;border-radius:3px;transition:width .6s ease;"></div>
-              </div>
+          </div>
+          <div>
+            <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-dim);margin-bottom:3px;">
+              <span style="letter-spacing:.5px;">OUT A</span>
+              <span id="orion-a-val" style="font-family:'DM Mono',monospace;">—</span>
+            </div>
+            <div style="height:5px;background:rgba(255,255,255,0.07);border-radius:3px;overflow:hidden;">
+              <div id="orion-a-bar" style="height:100%;width:0%;background:#f2b338;border-radius:3px;transition:width .6s ease;"></div>
             </div>
           </div>
         </div>
-      </div>
-      <!-- temperature row -->
-      <div class="vrm-temp-row" id="vrm-temp-row">
-        <div class="vrm-card"><div id="gc-fridge"  style="width:100%;height:140px;"></div><div class="vrm-card-label">Fridge</div><div id="vrm-rh-fridge"  style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:3px;"></div></div>
-        <div class="vrm-card"><div id="gc-kitchen" style="width:100%;height:140px;"></div><div class="vrm-card-label">Kitchen</div><div id="vrm-rh-kitchen" style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:3px;"></div></div>
-        <div class="vrm-card"><div id="gc-vicroom" style="width:100%;height:140px;"></div><div class="vrm-card-label">VicRoom</div><div id="vrm-rh-vicroom" style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:3px;"></div></div>
-        <div class="vrm-card"><div id="gc-engroom" style="width:100%;height:140px;"></div><div class="vrm-card-label">Engine Room</div><div id="vrm-rh-engroom" style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:3px;"></div></div>
+        <div class="mp-t3">
+          <div class="mp-t"><div class="l">AC out</div><div class="v" id="mpTA">—</div></div>
+          <div class="mp-t"><div class="l">Shore draw</div><div class="v" id="mpTS">—</div></div>
+          <div class="mp-t"><div class="l">Load</div><div class="v" id="mpTW">—</div></div>
+        </div>
       </div>
       <div class="kpi-grid" id="vrm-featured" style="display:none;"></div>
     </div>
@@ -2261,7 +2267,7 @@ if(window.echarts){
 // Temperature gauges
 var _vrmTempCharts={};
 function _vrmTempColor(f){var pts=[[32,'#4ea3e0'],[70,'#36c2a4'],[95,'#e0556b']];if(!isFinite(f))return'#36c2a4';if(f<=pts[0][0])return pts[0][1];if(f>=pts[pts.length-1][0])return pts[pts.length-1][1];for(var i=0;i<pts.length-1;i++)if(f<=pts[i+1][0])return vrmLerp(pts[i][1],pts[i+1][1],(f-pts[i][0])/(pts[i+1][0]-pts[i][0]));return'#36c2a4';}
-function _vrmTempSeries(f){return{type:'gauge',radius:'92%',startAngle:210,endAngle:-30,min:0,max:120,splitNumber:4,progress:{show:true,width:8,roundCap:true,itemStyle:{color:_vrmTempColor(f)}},axisLine:{lineStyle:{width:8,color:[[1,'rgba(255,255,255,0.10)']]}},axisTick:{show:false},splitLine:{show:false},axisLabel:{show:false},pointer:{show:false},anchor:{show:false},title:{show:false},detail:{offsetCenter:[0,'0%'],fontSize:20,fontWeight:700,color:'#e6e9ee',formatter:function(v){return isFinite(v)?Math.round(v)+'°F':'–';}},data:[{value:f}]};}
+function _vrmTempSeries(f){return{type:'gauge',radius:'92%',startAngle:210,endAngle:-30,min:0,max:120,splitNumber:4,progress:{show:true,width:6,roundCap:true,itemStyle:{color:_vrmTempColor(f)}},axisLine:{lineStyle:{width:6,color:[[1,'rgba(255,255,255,0.10)']]}},axisTick:{show:false},splitLine:{show:false},axisLabel:{show:false},pointer:{show:false},anchor:{show:false},title:{show:false},detail:{offsetCenter:[0,'0%'],fontSize:16,fontWeight:700,color:'#e6e9ee',formatter:function(v){return isFinite(v)?Math.round(v)+'°F':'–';}},data:[{value:f}]};}
 (function(){
   if(!window.echarts)return;
   VRM_TEMP_NAMES.forEach(function(nm,i){
