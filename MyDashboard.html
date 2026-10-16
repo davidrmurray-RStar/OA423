@@ -175,6 +175,33 @@
   .vrm-temp-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px;}
   @media(max-width:640px){.vrm-gauge-row{grid-template-columns:1fr;}.vrm-temp-row{grid-template-columns:repeat(2,1fr);}}
 
+  /* AC / CHARGER COLUMN — MultiPlus flip gauges + Skylla tab */
+  .pw-tabs{display:flex;gap:4px;border-bottom:.5px solid var(--card-border);}
+  .pw-tab{font-size:12px;padding:7px 12px;border:none;background:transparent;color:var(--text-dim);border-bottom:2px solid transparent;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:500;letter-spacing:.3px;}
+  .pw-tab.active{color:var(--text);border-bottom-color:var(--brass);}
+  .pw-pane{display:flex;flex-direction:column;gap:12px;}
+  .pw-pane[hidden]{display:none;}
+  .mp-hd{display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:2px;}
+  .mp-name{font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-dim);}
+  .mp-g2{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+  .mp-cap{font-size:11px;color:var(--text-dim);text-align:center;font-family:'DM Mono',monospace;}
+  .mp-pill{font-size:10px;padding:2px 9px;border-radius:8px;font-weight:500;letter-spacing:.3px;}
+  .mp-pill.shore{background:rgba(55,138,221,.18);color:#8fc0f0;}
+  .mp-pill.inv{background:rgba(200,146,42,.20);color:#e8b84b;}
+  .mp-pill.off{background:rgba(255,255,255,.06);color:var(--text-dim);}
+  .mp-pill.chg{background:rgba(58,170,122,.18);color:#7fd3ac;}
+  .mp-btn{font-size:10px;padding:2px 8px;border-radius:8px;background:transparent;color:var(--text-dim);border:.5px solid var(--card-border);cursor:pointer;font-family:'DM Sans',sans-serif;}
+  .mp-btn.on{border-color:var(--port);color:var(--port);}
+  .mp-t3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+  .mp-t{background:var(--card-bg);border:.5px solid var(--card-border);border-radius:var(--radius-sm);padding:8px 10px;}
+  .mp-t .l{font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--text-dim);}
+  .mp-t .v{font-family:'DM Mono',monospace;font-size:16px;font-weight:500;color:var(--text);margin-top:2px;}
+  .sk-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin:8px 0 4px;}
+  .sk-st{font-size:10px;text-align:center;padding:4px 0;border-radius:6px;background:rgba(255,255,255,.05);color:var(--text-dim);}
+  .sk-st.on{background:rgba(58,170,122,.18);color:#7fd3ac;font-weight:500;}
+  .sk-bar{height:8px;border-radius:4px;background:rgba(255,255,255,.07);overflow:hidden;display:flex;}
+  .sk-bar>div{height:100%;transition:width .6s ease;}
+
   /* CHART */
   .chart-card{background:var(--card-bg);border:.5px solid var(--card-border);border-radius:var(--radius);padding:16px;margin-bottom:16px;}
   .chart-title{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-dim);margin-bottom:14px;}
@@ -408,20 +435,38 @@
             <div class="vrm-legend" id="vrm-battery-legend"></div>
           </div>
         </div>
-        <!-- col 2: L1 + L2 stacked (1/3) -->
+        <!-- col 2: AC / charger tabs + Orion (1/3) -->
         <div style="display:flex;flex-direction:column;gap:12px;">
-          <div class="vrm-card">
-            <div id="gc-grid" style="width:100%;height:240px;"></div>
-            <div class="vrm-card-label">L1</div>
+          <div class="pw-tabs">
+            <button class="pw-tab active" data-pw="mp" onclick="pwTab('mp')">MultiPlus</button>
+            <button class="pw-tab" data-pw="sk" onclick="pwTab('sk')">Skylla</button>
           </div>
-          <div class="vrm-card" style="padding:14px 18px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;">
-            <div class="vrm-card-label" style="margin:0;">Shore Current</div>
-            <div id="total-amps-val" style="font-family:'DM Mono',monospace;font-size:36px;font-weight:500;color:#f2b338;line-height:1;">—</div>
-            <div style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;">A</div>
+          <!-- MultiPlus pane: per-unit flip gauges (inverter out when inverting, shore in on shore) -->
+          <div class="pw-pane" id="pw-mp">
+            <div class="vrm-card" id="mp0"></div>
+            <div class="vrm-card" id="mp1"></div>
+            <div class="mp-t3">
+              <div class="mp-t"><div class="l">AC out</div><div class="v" id="mpTA">—</div></div>
+              <div class="mp-t"><div class="l">Shore draw</div><div class="v" id="mpTS">—</div></div>
+              <div class="mp-t"><div class="l">Load</div><div class="v" id="mpTW">—</div></div>
+            </div>
           </div>
-          <div class="vrm-card">
-            <div id="gc-grid2" style="width:100%;height:240px;"></div>
-            <div class="vrm-card-label">L2</div>
+          <!-- Skylla-IP65 pane -->
+          <div class="pw-pane" id="pw-sk" hidden>
+            <div class="vrm-card">
+              <div class="mp-hd"><span class="mp-name">Skylla-IP65 24/35</span><span class="mp-pill off" id="sk-badge">No data</span></div>
+              <div class="sk-steps"><div class="sk-st" id="sk-s3">Bulk</div><div class="sk-st" id="sk-s4">Absorption</div><div class="sk-st" id="sk-s6">Float / Storage</div></div>
+              <div class="mp-g2" id="sk-gauges"></div>
+              <div class="mp-cap" id="sk-ac" style="margin-top:6px;"></div>
+            </div>
+            <div class="vrm-card">
+              <div class="mp-hd"><span class="mp-name">DVCC charge budget</span><span id="sk-budget" style="font-family:'DM Mono',monospace;font-size:12px;">—</span></div>
+              <div class="sk-bar" style="margin-top:6px;"><div id="sk-bar-sk" style="width:0;background:#3aaa7a;"></div><div id="sk-bar-mp" style="width:0;background:#378add;"></div></div>
+              <div style="display:flex;gap:12px;margin-top:6px;font-size:10px;color:var(--text-dim);">
+                <span><i style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#3aaa7a;margin-right:4px;"></i>Skylla</span>
+                <span><i style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#378add;margin-right:4px;"></i>MultiPlus chg</span>
+              </div>
+            </div>
           </div>
           <div class="vrm-card" style="padding:12px 16px;">
             <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">
@@ -2191,8 +2236,9 @@ function vrmSetSoc(soc,state,ttg,volt,state2){
 
 // Battery & Grid dual-ring gauges
 var _vrmBattChart=window.echarts?echarts.init(document.getElementById('gc-battery')):null;
-var _vrmGridChart=window.echarts?echarts.init(document.getElementById('gc-grid')):null;
-var _vrmGrid2Chart=window.echarts?echarts.init(document.getElementById('gc-grid2')):null;
+// L1/L2 ECharts shore gauges replaced by the MultiPlus flip gauges (mpRender) — kept null-safe
+var _vrmGridChart=(window.echarts&&document.getElementById('gc-grid'))?echarts.init(document.getElementById('gc-grid')):null;
+var _vrmGrid2Chart=(window.echarts&&document.getElementById('gc-grid2'))?echarts.init(document.getElementById('gc-grid2')):null;
 function _vrmRing(spec,radius,offY){return{type:'gauge',radius:radius,startAngle:220,endAngle:-40,min:spec.min,max:spec.max,splitNumber:4,progress:{show:true,width:12,roundCap:true,itemStyle:{color:spec.color}},axisLine:{lineStyle:{width:12,color:[[1,'rgba(255,255,255,0.10)']]}},axisTick:{show:false},splitLine:{show:false},axisLabel:{show:false},pointer:{show:false},anchor:{show:false},title:{show:false},detail:{valueAnimation:true,offsetCenter:[0,offY],formatter:function(v){return isFinite(v)?v.toFixed(spec.dp)+' '+spec.unit:'–';},fontSize:22,fontWeight:700,color:spec.color},data:[{value:spec.value}]};}
 function _vrmZoneRing(spec){return{type:'gauge',radius:'100%',startAngle:220,endAngle:-40,min:spec.min,max:spec.max,splitNumber:Math.max(2,Math.round((spec.max-spec.min)*2)),axisLine:{lineStyle:{width:14,color:vrmZoneStops(spec.zones,spec.min,spec.max)}},progress:{show:false},pointer:{show:true,icon:'rect',width:6,length:'22%',offsetCenter:[0,'-86%'],itemStyle:{color:'#fff',borderColor:'#0f1216',borderWidth:1.5}},anchor:{show:false},axisTick:{show:true,splitNumber:5,distance:2,length:4,lineStyle:{color:'rgba(255,255,255,0.25)',width:1}},splitLine:{show:true,distance:2,length:14,lineStyle:{color:'rgba(255,255,255,0.30)',width:2}},axisLabel:{show:true,distance:22,color:'#8b95a4',fontSize:10,formatter:function(v){if(v<=spec.min)return spec.min+'-';if(v>=spec.max)return spec.max+'+';return(Math.abs(v-Math.round(v))<0.01)?v.toFixed(0):'';}} ,title:{show:false},detail:{valueAnimation:true,offsetCenter:[0,'-16%'],formatter:function(v){return isFinite(v)?v.toFixed(spec.dp)+' '+spec.unit:'–';},fontSize:22,fontWeight:700,color:'#e6e9ee'},data:[{value:spec.value}]};}
 function _vrmAmpRing(spec){return{type:'gauge',radius:'62%',startAngle:220,endAngle:-40,min:spec.min,max:spec.max,splitNumber:2,axisLine:{lineStyle:{width:10,color:[[1,'rgba(242,179,56,0.22)']]}},progress:{show:false},pointer:{show:true,icon:'rect',width:4,length:'20%',offsetCenter:[0,'-84%'],itemStyle:{color:'#f2b338',borderColor:'#0f1216',borderWidth:1}},anchor:{show:false},axisTick:{show:false},splitLine:{show:true,distance:2,length:10,lineStyle:{color:'rgba(255,255,255,0.30)',width:1.5}},axisLabel:{show:true,distance:-2,color:'#8b95a4',fontSize:9,formatter:function(v){return Math.round(v);}},title:{show:false},detail:{valueAnimation:true,offsetCenter:[0,'24%'],formatter:function(v){return isFinite(v)?v.toFixed(spec.dp)+' '+spec.unit:'–';},fontSize:22,fontWeight:700,color:spec.color},data:[{value:spec.value}]};}
@@ -2595,13 +2641,29 @@ function mqttHandle(topic,value){
     _mqttData.vebusStates[inst]=VEBUS_STATE_NAMES[value]||String(value);
     _vrmSocState=_mqttData.vebusStates[288]||'';
     _vrmSocState2=_mqttData.vebusStates[276]||'';
+    mpSet(inst,{state:Number(value)});
     if(_vrmSocReady)_vrmSocChart.setOption({dataset:{source:[[1,_vrmSocVal]]}}); return;
   }
-  if(parts[0]==='vebus'&&parts.length>=5){
-    var vi=parseInt(parts[1]), vp=parts.slice(2).join('/');
-    if(vp==='Ac/ActiveIn/L1/V'){if(vi===288){_mqttData.gV=Number(value);mqttGridGauge();}else if(vi===276){_mqttData.g2V=Number(value);mqttGrid2Gauge();}}
-    else if(vp==='Ac/ActiveIn/L1/I'){if(vi===288){_mqttData.gI=Number(value);mqttGridGauge();}else if(vi===276){_mqttData.g2I=Number(value);mqttGrid2Gauge();}}
+  if(parts[0]==='vebus'&&parts.length>=4){
+    var vi=parseInt(parts[1]), vp=parts.slice(2).join('/'), n=Number(value);
+    if(vp==='Ac/ActiveIn/L1/V'){if(vi===288)_mqttData.gV=n;else if(vi===276)_mqttData.g2V=n;mpSet(vi,{inV:n});}
+    else if(vp==='Ac/ActiveIn/L1/I'){if(vi===288)_mqttData.gI=n;else if(vi===276)_mqttData.g2I=n;mpSet(vi,{inA:n});}
+    else if(vp==='Ac/Out/L1/V')mpSet(vi,{outV:n});
+    else if(vp==='Ac/Out/L1/I')mpSet(vi,{outA:n});
+    else if(vp==='Ac/ActiveIn/Connected')mpSet(vi,{connRaw:n});
+    else if(vp==='Dc/0/Current')mpSet(vi,{dcA:n});
     return;
+  }
+  // Skylla-IP65 on VE.Can → com.victronenergy.charger.<inst>
+  if(parts[0]==='charger'&&parts.length>=3){
+    var cp=parts.slice(2).join('/'), cn=Number(value);
+    if(cp==='Dc/0/Voltage')SK.v=cn;
+    else if(cp==='Dc/0/Current')SK.a=cn;
+    else if(cp==='State')SK.state=cn;
+    else if(cp==='Ac/In/L1/I')SK.acA=cn;
+    else if(cp==='Ac/In/CurrentLimit')SK.acLim=cn;
+    else return;
+    SK.seen=Date.now(); skRender(); return;
   }
   if(parts[0]==='temperature'&&parts.length>=3){
     var ti=parts[1];
@@ -2628,26 +2690,117 @@ function mqttBattGauge(){
   if(_vrmBattChart&&bV!==undefined)
     _vrmBattChart.setOption({series:[{data:[{value:bV}]},{data:[{value:bI!==undefined?bI:NaN}]}]});
 }
-function mqttGridGauge(){
-  if(!_vrmGridChart)return;
-  vrmSetDual(_vrmGridChart,
-    {value:_mqttData.gV!==undefined?_mqttData.gV:NaN,min:VRM_RANGES.gridV[0],max:VRM_RANGES.gridV[1],unit:'V',color:'#36c2a4',dp:1},
-    {value:_mqttData.gI!==undefined?_mqttData.gI:NaN,min:VRM_RANGES.gridA[0],max:VRM_RANGES.gridA[1],unit:'A',color:'#f2b338',dp:1});
-  mqttTotalAmps();
+// ── MultiPlus flip gauges ────────────────────────────────────────────────────
+// Each unit auto-shows inverter OUTPUT (brass) when inverting and shore INPUT (blue) on shore.
+// "View shore" on an inverting unit forces the shore view for MP_OVERRIDE_SEC, then reverts.
+// Shore-present flip is debounced MP_DEBOUNCE_MS so a transfer doesn't flicker the gauge.
+const MP_OVERRIDE_SEC = 30, MP_DEBOUNCE_MS = 5000, MP_SHORE_MIN_V = 90;
+const MP_INST = {288:0, 276:1};   // vebus instance → card
+const MP = [
+  {name:'MultiPlus · L1', inst:288},
+  {name:'MultiPlus · L2', inst:276}
+].map(function(u){return Object.assign(u,{inV:NaN,inA:NaN,outV:NaN,outA:NaN,dcA:NaN,state:NaN,connRaw:NaN,shore:null,pendShore:null,pendSince:0,ov:0});});
+
+function mpShoreRaw(u){
+  if(isFinite(u.connRaw)) return u.connRaw===1;
+  if(isFinite(u.inV)) return u.inV>MP_SHORE_MIN_V;
+  return null;
 }
-function mqttGrid2Gauge(){
-  if(!_vrmGrid2Chart)return;
-  vrmSetDual(_vrmGrid2Chart,
-    {value:_mqttData.g2V!==undefined?_mqttData.g2V:NaN,min:VRM_RANGES.grid2V[0],max:VRM_RANGES.grid2V[1],unit:'V',color:'#36c2a4',dp:1},
-    {value:_mqttData.g2I!==undefined?_mqttData.g2I:NaN,min:VRM_RANGES.grid2A[0],max:VRM_RANGES.grid2A[1],unit:'A',color:'#f2b338',dp:1});
-  mqttTotalAmps();
+function mpSet(inst,d){
+  var i=MP_INST[inst]; if(i===undefined) return;
+  var u=MP[i]; Object.assign(u,d);
+  var raw=mpShoreRaw(u);
+  if(raw!==null){
+    if(u.shore===null){u.shore=raw;}                       // first reading: take it straight away
+    else if(raw!==u.shore){
+      if(u.pendShore!==raw){u.pendShore=raw;u.pendSince=Date.now();}
+      else if(Date.now()-u.pendSince>=MP_DEBOUNCE_MS){u.shore=raw;u.pendShore=null;if(raw)u.ov=0;}  // shore returned → clear override
+    } else u.pendShore=null;
+  }
+  mpRender();
 }
-function mqttTotalAmps(){
-  var el=document.getElementById('total-amps-val');
-  if(!el)return;
-  var a1=_mqttData.gI,a2=_mqttData.g2I;
-  el.textContent=(a1!==undefined&&a2!==undefined)?(a1+a2).toFixed(1):(a1!==undefined?a1.toFixed(1):(a2!==undefined?a2.toFixed(1):'—'));
+function mpPt(r,f){var a=Math.PI*(1-f);return[90+r*Math.cos(a),85-r*Math.sin(a)];}
+function mpArc(f){f=Math.max(.001,Math.min(1,f));var p=mpPt(66,0),q=mpPt(66,f);return'M'+p[0]+' '+p[1]+' A66 66 0 0 1 '+q[0]+' '+q[1];}
+function mpGauge(tag,big,f,col,unit,sub,dash){
+  return '<div><svg viewBox="0 0 180 100" width="100%">'
+   +'<path d="'+mpArc(1)+'" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="10" stroke-linecap="round"/>'
+   +'<path d="'+mpArc(isFinite(f)?f:0)+'" fill="none" stroke="'+col+'" stroke-width="10" stroke-linecap="round"'+(dash?' stroke-dasharray="6 5"':'')+' style="transition:all .5s"/>'
+   +'<text x="90" y="76" text-anchor="middle" fill="var(--text)" font-size="24" font-weight="500" font-family="DM Mono,monospace">'+big+'</text>'
+   +'<text x="90" y="95" text-anchor="middle" fill="var(--text-dim)" font-size="10" letter-spacing="1">'+unit+' · '+tag.toUpperCase()+'</text>'
+   +'</svg><div class="mp-cap">'+sub+'</div></div>';
 }
+function mpF(v,dp){return isFinite(v)?v.toFixed(dp):'—';}
+function mpRender(){
+  var ta=0,ts=0,tw=0,anyOut=false,anyIn=false;
+  MP.forEach(function(u,i){
+    var el=document.getElementById('mp'+i); if(!el) return;
+    var known=u.shore!==null, inv=known&&!u.shore;
+    var forced=inv&&u.ov>0, showShore=!inv||forced;
+    var col=showShore?'#378add':'#c8922a';
+    var hasShore=isFinite(u.inV)&&u.inV>MP_SHORE_MIN_V;
+    var sV=hasShore?mpF(u.inV,1):'—', sA=hasShore?mpF(u.inA,1):'—';
+    var V=showShore?u.inV:u.outV, A=showShore?u.inA:u.outA;
+    var tag=showShore?'shore in':'inv out';
+    if(isFinite(u.outA)){ta+=u.outA;anyOut=true;}
+    if(isFinite(u.outA)&&isFinite(u.outV))tw+=u.outV*u.outA;
+    if(hasShore&&isFinite(u.inA)){ts+=u.inA;anyIn=true;}
+    var badge=!known?'<span class="mp-pill off">No data</span>':inv?'<span class="mp-pill inv">Inverter</span>':'<span class="mp-pill shore">Shore</span>';
+    var btn=inv?'<button class="mp-btn'+(forced?' on':'')+'" onclick="mpOverride('+i+')">'+(forced?'Auto · '+u.ov+'s':'View shore')+'</button>':'';
+    el.innerHTML='<div class="mp-hd"><span class="mp-name">'+u.name+'</span><span style="display:flex;gap:6px;align-items:center;">'+btn+badge+'</span></div>'
+      +'<div class="mp-g2">'
+      +mpGauge(tag,showShore?sV:mpF(V,1),(V-90)/50,col,'V',showShore?'Out '+mpF(u.outV,1)+' V':'Shore '+sV+' V',forced)
+      +mpGauge(tag,showShore?sA:mpF(A,1),A/30,col,'A',showShore?'Out '+mpF(u.outA,1)+' A':'Shore '+sA+' A',forced)
+      +'</div>';
+  });
+  var e;
+  if((e=document.getElementById('mpTA')))e.textContent=anyOut?ta.toFixed(1)+' A':'—';
+  if((e=document.getElementById('mpTS')))e.textContent=anyIn?ts.toFixed(1)+' A':'0.0 A';
+  if((e=document.getElementById('mpTW')))e.textContent=anyOut?(tw/1000).toFixed(2)+' kW':'—';
+  skRender();
+}
+function mpOverride(i){var u=MP[i];u.ov=u.ov>0?0:MP_OVERRIDE_SEC;mpRender();}
+setInterval(function(){
+  var ch=false;
+  MP.forEach(function(u){
+    if(u.ov>0){u.ov--;ch=true;}
+    if(u.pendShore!==null&&Date.now()-u.pendSince>=MP_DEBOUNCE_MS){u.shore=u.pendShore;u.pendShore=null;if(u.shore)u.ov=0;ch=true;}
+  });
+  if(ch)mpRender();
+},1000);
+
+// ── Skylla-IP65 24/35 (VE.Can) ───────────────────────────────────────────────
+const SK_MAX_A = 35, SK_AC_MAX_A = 10.5, DVCC_CAP_A = 85;
+const SK = {v:NaN,a:NaN,state:NaN,acA:NaN,acLim:NaN,seen:0};
+const SK_STATES = {0:'Off',2:'Fault',3:'Bulk',4:'Absorption',5:'Float',6:'Storage',7:'Equalize',11:'Power Supply',245:'Starting up',252:'Ext Control'};
+function skRender(){
+  var g=document.getElementById('sk-gauges'); if(!g) return;
+  var has=SK.seen>0, st=SK.state, on=has&&isFinite(st)&&st!==0;
+  var badge=document.getElementById('sk-badge');
+  badge.className='mp-pill '+(!has?'off':st===2?'inv':on?'chg':'off');
+  badge.textContent=!has?'No data':(SK_STATES[st]||('State '+st));
+  [['sk-s3',[3]],['sk-s4',[4,7]],['sk-s6',[5,6]]].forEach(function(p){
+    var el=document.getElementById(p[0]); if(el) el.classList.toggle('on',has&&p[1].indexOf(st)>=0);
+  });
+  g.innerHTML=mpGauge('output',on?mpF(SK.v,1):'—',(SK.v-22)/8,'#3aaa7a','V','Abs 28.8 V',false)
+             +mpGauge('output',on?mpF(SK.a,1):'—',SK.a/SK_MAX_A,'#3aaa7a','A','Max '+SK_MAX_A+' A',false);
+  var ac=document.getElementById('sk-ac');
+  if(ac) ac.textContent=isFinite(SK.acA)?'AC in '+SK.acA.toFixed(1)+' A of '+(isFinite(SK.acLim)?SK.acLim.toFixed(1):SK_AC_MAX_A)+' A limit':'';
+  // DVCC budget: Skylla + MultiPlus charge current (vebus Dc/0/Current > 0 = charging)
+  var skA=(on&&isFinite(SK.a))?Math.max(0,SK.a):0;
+  var mpA=MP.reduce(function(s,u){return s+(isFinite(u.dcA)&&u.dcA>0?u.dcA:0);},0);
+  var tot=skA+mpA;
+  var b=document.getElementById('sk-budget'); if(b){b.textContent=tot.toFixed(1)+' / '+DVCC_CAP_A+' A';b.style.color=tot>DVCC_CAP_A*0.95?'var(--warn)':'var(--text)';}
+  var b1=document.getElementById('sk-bar-sk'),b2=document.getElementById('sk-bar-mp');
+  if(b1)b1.style.width=Math.min(100,skA/DVCC_CAP_A*100)+'%';
+  if(b2)b2.style.width=Math.min(100-Math.min(100,skA/DVCC_CAP_A*100),mpA/DVCC_CAP_A*100)+'%';
+}
+function pwTab(t){
+  document.querySelectorAll('.pw-tab').forEach(function(b){b.classList.toggle('active',b.dataset.pw===t);});
+  document.getElementById('pw-mp').hidden=(t!=='mp');
+  document.getElementById('pw-sk').hidden=(t!=='sk');
+  try{localStorage.setItem('ss_pw_tab',t);}catch(e){}
+}
+(function(){var t='mp';try{t=localStorage.getItem('ss_pw_tab')||'mp';}catch(e){} if(document.getElementById('pw-mp')){pwTab(t==='sk'?'sk':'mp');mpRender();}})();
 var ORION_STATES={0:'Off',2:'Fault',3:'Bulk',4:'Absorption',5:'Float',6:'Storage',7:'Equalize',11:'Power Supply'};
 function mqttOrionBars(){
   var vEl=document.getElementById('orion-v-val');
