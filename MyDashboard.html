@@ -2545,30 +2545,52 @@ function vrmStartHeartbeat() {
 async function vrmTick() {
   const statusWrap = document.getElementById('vrm-status-wrap');
   const updatedEl  = document.getElementById('vrm-updated');
+  // The live gauges come from the local Cerbo MQTT bridge (/api/live), not from this
+  // VRM *cloud* call. A slow, rate-limited or non-JSON cloud reply used to land in the
+  // catch below and flash a full-width "VRM server not running" banner even though the
+  // local server was fine. Now: tolerate transient failures, and only claim the server
+  // is down when the local /api/live poll is failing too.
+  let res, data;
   try {
-    const res = await fetchT('/api/diagnostics', 35000);
-    const data = await res.json();
-    if (!res.ok || data.success === false) {
-      const detail = (data && (data.errors || data.error)) ? JSON.stringify(data.errors || data.error) : ('HTTP ' + res.status);
-      if (statusWrap) statusWrap.innerHTML = `<div class="vrm-offline">API error: ${vrmEsc(detail)}</div>`;
-      return;
-    }
-    if (statusWrap) statusWrap.innerHTML = '';
-    if (!vrmOnline) {
-      vrmOnline = true;
-      vrmStartHeartbeat();
-    }
-    vrmRecords = data.records || [];
-    if (updatedEl) updatedEl.textContent = 'updated ' + new Date().toLocaleTimeString();
-    vrmRender(vrmRecords);
+    res = await fetchT('/api/diagnostics', 35000);
+    const text = await res.text();
+    try { data = JSON.parse(text); } catch (pe) { data = { success:false, error:'non-JSON reply (HTTP ' + res.status + ')' }; }
   } catch(e) {
-    vrmOnline = false;
-    if (statusWrap) statusWrap.innerHTML = `<div class="vrm-offline">
-      VRM server not running.<br>
-      Start it with: <code>python3 vrm-dashboard/vrm_dashboard.py</code><br>
-      then open <code>http://localhost:8787</code>
+    vrmFail(Date.now() - _liveLastOk < 15000 ? 'cloud' : 'server', e && e.name === 'AbortError' ? 'timed out' : String(e && e.message || e));
+    return;
+  }
+  if (!res.ok || data.success === false) {
+    const detail = (data && (data.errors || data.error)) ? JSON.stringify(data.errors || data.error) : ('HTTP ' + res.status);
+    vrmFail('cloud', detail);
+    return;
+  }
+  _vrmFailN = 0;
+  if (statusWrap) statusWrap.innerHTML = '';
+  if (!vrmOnline) {
+    vrmOnline = true;
+    vrmStartHeartbeat();
+  }
+  vrmRecords = data.records || [];
+  if (updatedEl) updatedEl.textContent = 'updated ' + new Date().toLocaleTimeString();
+  vrmRender(vrmRecords);
+}
+let _vrmFailN = 0;
+const VRM_FAIL_SHOW = 3;   // consecutive failed cloud polls (~30 s) before showing anything
+function vrmFail(kind, detail) {
+  _vrmFailN++;
+  console.warn('[vrm] ' + kind + ' poll failed (' + _vrmFailN + '): ' + detail);
+  if (_vrmFailN < VRM_FAIL_SHOW) return;          // keep the last good view; no flashing
+  vrmOnline = false;
+  const statusWrap = document.getElementById('vrm-status-wrap');
+  if (!statusWrap) return;
+  if (kind === 'server') {
+    statusWrap.innerHTML = `<div class="vrm-offline">
+      Dashboard server not responding.<br>
+      In Termux run <code>./run.sh</code>, or tap ↺ Server.
     </div>`;
-    if (updatedEl) updatedEl.textContent = '';
+  } else {
+    // Local server is up and live gauges keep working — just a quiet one-line note.
+    statusWrap.innerHTML = `<div style="font-size:11px;color:var(--text-dim);margin:-6px 0 10px;text-align:right;">VRM cloud unavailable (${vrmEsc(String(detail).slice(0,80))}) · live data OK</div>`;
   }
 }
 // ── Direct Cerbo GX live data (server-side MQTT bridge → /api/live poll) ─────
