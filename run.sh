@@ -65,10 +65,13 @@ done
 # Running = restart loop alive (pid file, checked against its command line so a stale pid
 # reused after reboot doesn't count) or a server process. Patterns are anchored so they
 # don't match unrelated command lines that merely mention vrm_dashboard (e.g. an ssh command).
+# Termux shows the server as "python3 /data/.../usr/bin/python3 vrm_dashboard.py"; plain Linux as
+# "python3 vrm_dashboard.py". Anchored both ends so the loop and ssh commands never match.
+SERVER_RE='^(python3 )?([^ ]*/)?python3 vrm_dashboard\.py$'
 LOOP_PID=$(cat ~/.vrm-loop.pid 2>/dev/null)
-if { [ -n "$LOOP_PID" ] && grep -qa VRM_TOKEN "/proc/$LOOP_PID/cmdline" 2>/dev/null; } || pgrep -f "^python3 vrm_dashboard.py" > /dev/null 2>&1; then
+if { [ -n "$LOOP_PID" ] && grep -qa VRM_TOKEN "/proc/$LOOP_PID/cmdline" 2>/dev/null; } || pgrep -f "$SERVER_RE" > /dev/null 2>&1; then
   if [ -n "$OLD_REV" ] && [ "$OLD_REV" != "$NEW_REV" ]; then
-    pkill -f "^python3 vrm_dashboard.py"  # ^ = server only, not the restart loop (its command line contains the same text); loop restarts it in ~3s
+    pkill -f "$SERVER_RE"  # server only, not the restart loop; loop restarts it in ~3s
     echo "VRM dashboard restarting with new code"
   else
     echo "VRM dashboard already running at http://localhost:8787/"
