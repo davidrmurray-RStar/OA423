@@ -53,7 +53,15 @@ else
   echo "go2rtc started"
 fi
 
-# ── 5. VRM dashboard server (auto-restart loop) ──
+# ── 5. Trim logs (keep last 1 MB once over 5 MB) ──
+for LOG in ~/vrm.log ~/go2rtc.log ~/boot.log; do
+  if [ -f "$LOG" ] && [ "$(stat -c %s "$LOG" 2>/dev/null || echo 0)" -gt 5242880 ]; then
+    tail -c 1048576 "$LOG" > "$LOG.tmp" && cat "$LOG.tmp" > "$LOG" && rm -f "$LOG.tmp"
+    echo "Trimmed $(basename "$LOG")"
+  fi
+done
+
+# ── 6. VRM dashboard server (auto-restart loop) ──
 if pgrep -f vrm_dashboard > /dev/null 2>&1; then
   if [ -n "$OLD_REV" ] && [ "$OLD_REV" != "$NEW_REV" ]; then
     pkill -f "python3 vrm_dashboard.py"   # loop restarts it with the new code in ~3s

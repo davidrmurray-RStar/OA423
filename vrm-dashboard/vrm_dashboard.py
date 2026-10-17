@@ -65,13 +65,13 @@ def _mqtt_bridge_start():
 
     prefix = f"N/{CERBO_PORTAL_ID}/"
 
-    def on_connect(c, u, f, rc):
+    def on_connect(c, u, *_):  # works with paho callback API v1 and v2
         global _live_connected
         _live_connected = True
         c.subscribe(f"N/{CERBO_PORTAL_ID}/#")
         c.publish(f"R/{CERBO_PORTAL_ID}/keepalive", "")
 
-    def on_disconnect(c, u, rc):
+    def on_disconnect(c, u, *_):
         global _live_connected
         _live_connected = False
 
@@ -86,7 +86,11 @@ def _mqtt_bridge_start():
         except Exception:
             pass
 
-    client = pmqtt.Client(client_id="vrm_dash_bridge", clean_session=True)
+    try:  # paho-mqtt 2.x
+        client = pmqtt.Client(pmqtt.CallbackAPIVersion.VERSION2,
+                              client_id="vrm_dash_bridge", clean_session=True)
+    except AttributeError:  # paho-mqtt 1.x
+        client = pmqtt.Client(client_id="vrm_dash_bridge", clean_session=True)
     client.on_connect = on_connect
     client.on_disconnect = on_disconnect
     client.on_message = on_message
@@ -178,17 +182,29 @@ def vrm_get(path: str, query: str = "") -> tuple[int, bytes]:
         return 502, msg.encode()
 
 
+class QuietServer(ThreadingHTTPServer):
+    def handle_error(self, request, client_address):
+        if isinstance(sys.exc_info()[1], (BrokenPipeError, ConnectionResetError)):
+            return
+        super().handle_error(request, client_address)
+
+
 class Handler(BaseHTTPRequestHandler):
-    def log_message(self, fmt, *args):  # quieter logs
+    def log_message(self, fmt, *args):  # log errors only; 2xx/3xx polling floods vrm.log
+        if fmt.startswith('"%s" %s') and len(args) >= 2 and str(args[1])[:1] in "23":
+            return
         sys.stderr.write("  %s\n" % (fmt % args))
 
     def _send(self, status, body, ctype):
-        self.send_response(status)
-        self.send_header("Content-Type", ctype)
-        self.send_header("Content-Length", str(len(body)))
-        self.send_header("Cache-Control", "no-store")
-        self.end_headers()
-        self.wfile.write(body)
+        try:
+            self.send_response(status)
+            self.send_header("Content-Type", ctype)
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            self.wfile.write(body)
+        except (BrokenPipeError, ConnectionResetError):
+            pass  # browser gave up (fetch timeout / tab reload) — harmless
 
     def do_GET(self):
         parsed = urlparse(self.path)
@@ -330,7 +346,7 @@ def main():
               '  then:  export VRM_TOKEN="your-token"  and re-run.', file=sys.stderr)
         sys.exit(1)
     _mqtt_bridge_start()
-    server = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
+    server = QuietServer(("0.0.0.0", PORT), Handler)
     url = f"http://localhost:{server.server_address[1]}/"
     try:
         URL_FILE.write_text(url)

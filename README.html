@@ -505,6 +505,13 @@
       <li><b>Start at boot:</b> <code>run.sh</code> installs <code>boot.sh</code> into <code>~/.termux/boot/</code>. With the Termux:Boot app installed (and opened once), the tablet starts the server and opens the dashboard by itself after a reboot. Log: <code>~/boot.log</code>.</li>
       <li><b>First use:</b> the page must be opened once with the server running after this update so the offline copy gets stored.</li>
     </ul>
+    <h3>Server logging (Oct 2026)</h3>
+    <ul>
+      <li><code>~/vrm.log</code> records only errors and restarts. Routine successful requests are no longer logged.</li>
+      <li>Broken-pipe tracebacks (the browser giving up on a slow request) are suppressed. They were harmless.</li>
+      <li><code>run.sh</code> trims <code>vrm.log</code>, <code>go2rtc.log</code> and <code>boot.log</code> to their last 1 MB once they pass 5 MB.</li>
+      <li>"vrm_dashboard exited, restarting" lines in the log are normal after a code update. <code>run.sh</code> restarts the server so it picks up the new version.</li>
+    </ul>
     <div class="callout blue"><span class="callout-icon">💡</span><div class="callout-body">Upgrade: copy both <code>MyDashboard.html</code> and <code>assets/chart.umd.js</code> — the page now loads Chart.js locally.</div></div>
     <div class="callout blue"><span class="callout-icon">💡</span><div class="callout-body">For a completely offline build with all assets embedded in the file, ask Claude to inline them.</div></div>
   </section>
