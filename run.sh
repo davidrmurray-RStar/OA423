@@ -62,7 +62,11 @@ for LOG in ~/vrm.log ~/go2rtc.log ~/boot.log; do
 done
 
 # ── 6. VRM dashboard server (auto-restart loop) ──
-if pgrep -f vrm_dashboard > /dev/null 2>&1; then
+# Running = restart loop alive (pid file, checked against its command line so a stale pid
+# reused after reboot doesn't count) or a server process. Patterns are anchored so they
+# don't match unrelated command lines that merely mention vrm_dashboard (e.g. an ssh command).
+LOOP_PID=$(cat ~/.vrm-loop.pid 2>/dev/null)
+if { [ -n "$LOOP_PID" ] && grep -qa VRM_TOKEN "/proc/$LOOP_PID/cmdline" 2>/dev/null; } || pgrep -f "^python3 vrm_dashboard.py" > /dev/null 2>&1; then
   if [ -n "$OLD_REV" ] && [ "$OLD_REV" != "$NEW_REV" ]; then
     pkill -f "^python3 vrm_dashboard.py"  # ^ = server only, not the restart loop (its command line contains the same text); loop restarts it in ~3s
     echo "VRM dashboard restarting with new code"
@@ -71,6 +75,7 @@ if pgrep -f vrm_dashboard > /dev/null 2>&1; then
   fi
 else
   nohup bash -c '
+    echo $$ > ~/.vrm-loop.pid
     export VRM_TOKEN="$(cat ~/vrm-dashboard/vrm_token.txt)"
     export PORT=8787
     cd ~/vrm-dashboard
