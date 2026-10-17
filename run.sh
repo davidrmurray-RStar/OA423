@@ -64,7 +64,7 @@ done
 # ── 6. VRM dashboard server (auto-restart loop) ──
 if pgrep -f vrm_dashboard > /dev/null 2>&1; then
   if [ -n "$OLD_REV" ] && [ "$OLD_REV" != "$NEW_REV" ]; then
-    pkill -f "python3 vrm_dashboard.py"   # loop restarts it with the new code in ~3s
+    pkill -f "^python3 vrm_dashboard.py"  # ^ = server only, not the restart loop (its command line contains the same text); loop restarts it in ~3s
     echo "VRM dashboard restarting with new code"
   else
     echo "VRM dashboard already running at http://localhost:8787/"
