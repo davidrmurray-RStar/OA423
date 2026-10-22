@@ -2173,9 +2173,9 @@ function vrmWeatherCard(label) {
 
 const VRM_PANEL = '/assets/custom-gauge-panel.png';
 const VRM_BATT_ZONES = [
-  { upTo: 24.0, color: '#e0556b', label: 'low (<24V)'  },
-  { upTo: 25.0, color: '#f0a23a', label: 'warn (24–25V)' },
-  { upTo: Infinity, color: '#36c2a4', label: 'good (>25V)' },
+  { upTo: 23.6, color: '#e0556b', label: 'low'  },
+  { upTo: 24.6, color: '#f0a23a', label: 'warn' },
+  { upTo: Infinity, color: '#36c2a4', label: 'good' },
 ];
 const VRM_RANGES = {
   battV:[23.0,27.2], battA:[-150,150], gridV:[100,140], gridA:[0,30],
@@ -2187,9 +2187,10 @@ const VRM_TEMP_IDS  = ['fridge','kitchen','vicroom','engroom'];
 function vrmHex2Rgb(h){h=h.replace('#','');return[parseInt(h.substr(0,2),16),parseInt(h.substr(2,2),16),parseInt(h.substr(4,2),16)];}
 function vrmLerp(a,b,t){var A=vrmHex2Rgb(a),B=vrmHex2Rgb(b);return'rgb('+Math.round(A[0]+(B[0]-A[0])*t)+','+Math.round(A[1]+(B[1]-A[1])*t)+','+Math.round(A[2]+(B[2]-A[2])*t)+')';}
 function vrmZoneStops(zones,min,max){
-  var span=max-min,anchors=[[0,zones[0].color]],stops=[],N=60;
-  zones.forEach(function(z){var f=z.upTo===Infinity?1:Math.max(0,Math.min(1,(z.upTo-min)/span));anchors.push([f,z.color]);});
-  anchors[anchors.length-1][0]=1;
+  // each zone holds its own colour; blend only over a short band (5% of span) around each threshold
+  var span=max-min,blend=0.05,anchors=[[0,zones[0].color]],stops=[],N=60;
+  zones.forEach(function(z,i){var nx=zones[i+1];if(!nx||z.upTo===Infinity)return;var f=(z.upTo-min)/span;anchors.push([Math.max(0,Math.min(1,f-blend/2)),z.color],[Math.max(0,Math.min(1,f+blend/2)),nx.color]);});
+  anchors.push([1,zones[zones.length-1].color]);
   for(var i=0;i<=N;i++){var f=i/N,j=0;while(j<anchors.length-1&&anchors[j+1][0]<f)j++;var a=anchors[j],b=anchors[Math.min(j+1,anchors.length-1)],t=b[0]>a[0]?(f-a[0])/(b[0]-a[0]):0;stops.push([f,vrmLerp(a[1],b[1],Math.max(0,Math.min(1,t)))]);}
   return stops;
 }
