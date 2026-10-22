@@ -270,15 +270,15 @@
     padding:6px 14px;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:500;cursor:pointer;letter-spacing:.3px;}
   .update-hrs-btn:hover{background:rgba(200,146,42,.1);}
   /* Voice control */
-  /* floats above everything (overlays are z-index 9999) so "close" works with a document open */
-  #mic-btn{position:fixed;right:18px;bottom:18px;z-index:10001;width:56px;height:56px;border-radius:50%;
-    background:#0d1f36;border:1px solid var(--brass);color:var(--brass-light);font-size:24px;line-height:1;cursor:pointer;
-    box-shadow:0 4px 16px rgba(0,0,0,.45);transition:all .2s;-webkit-tap-highlight-color:transparent;}
+  /* sits at the right end of the tab bar so it never covers dashboard tiles */
+  #mic-btn{margin-left:auto;align-self:center;width:38px;height:34px;border-radius:17px;
+    background:rgba(255,255,255,.06);border:.5px solid var(--brass);color:var(--brass-light);font-size:17px;line-height:1;cursor:pointer;
+    transition:all .2s;-webkit-tap-highlight-color:transparent;}
   #mic-btn.listening{background:var(--brass);color:var(--deep);animation:mic-pulse 1.2s ease-in-out infinite;}
-  @keyframes mic-pulse{0%,100%{box-shadow:0 0 0 0 rgba(200,146,42,.55);}50%{box-shadow:0 0 0 12px rgba(200,146,42,0);}}
-  #voice-bubble{position:fixed;right:18px;bottom:86px;z-index:10000;max-width:360px;background:#0d1f36;border:.5px solid var(--brass);
+  @keyframes mic-pulse{0%,100%{box-shadow:0 0 0 0 rgba(200,146,42,.55);}50%{box-shadow:0 0 0 10px rgba(200,146,42,0);}}
+  #voice-bubble{position:fixed;right:20px;top:200px;z-index:10000;max-width:360px;background:#0d1f36;border:.5px solid var(--brass);
     border-radius:14px;padding:10px 14px;font-family:'DM Sans',sans-serif;font-size:14px;color:#e8f0f8;
-    box-shadow:0 6px 24px rgba(0,0,0,.4);display:none;}
+    box-shadow:0 6px 24px rgba(0,0,0,.4);display:none;pointer-events:none;}
   #voice-bubble .vb-heard{color:#8fa9bf;font-style:italic;}
   #voice-bubble .vb-reply{margin-top:4px;}
 </style>
@@ -315,6 +315,7 @@
     <button class="tab" data-tab="tanks" onclick="switchTab('tanks')">Tanks</button>
     <button class="tab" data-tab="maintenance" onclick="switchTab('maintenance')">Maintenance</button>
     <button class="tab" data-tab="documents" onclick="switchTab('documents')">Documents</button>
+    <button onclick="voiceToggle()" id="mic-btn" title="Voice control" style="display:none;">🎤</button>
   </div>
 
   <div class="subtabs" id="maint-subtabs">
@@ -3532,7 +3533,6 @@ function voiceToggle() {
 
 if (VoiceRecognition) window.addEventListener('DOMContentLoaded', () => { document.getElementById('mic-btn').style.display = ''; });
 </script>
-<button onclick="voiceToggle()" id="mic-btn" title="Voice control" style="display:none;">🎤</button>
 <div id="voice-bubble"><div class="vb-heard" id="vb-heard"></div><div class="vb-reply" id="vb-reply"></div></div>
 </body>
 </html>
