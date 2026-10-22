@@ -2208,10 +2208,10 @@ var _vrmSocChart=null,_vrmSocReady=false,_vrmSocVal=0,_vrmSocState='',_vrmSocSta
     function pt(r,rad){return[Math.cos(rad)*r+cx,-Math.sin(rad)*r+cy];}
     function ptrPts(ang){return[pt(outerR,ang),pt(outerR,ang+Math.PI*0.03),pt(ptrInner,ang)];}
     var imgStyle={image:VRM_PANEL,x:cx-outerR,y:cy-outerR,width:outerR*2,height:outerR*2};
-    var v=_vrmSocVolt;
-    var pctColor  = isFinite(v)&&v<25.0 ? '#c03018' : isFinite(v)&&v<25.5 ? '#b07010' : 'rgb(0,50,190)';
-    var stColor   = isFinite(v)&&v<25.0 ? 'rgb(160,60,40)' : isFinite(v)&&v<25.5 ? 'rgb(150,100,20)' : 'rgb(90,108,150)';
-    var shadColor = isFinite(v)&&v<25.0 ? 'rgba(224,92,74,0.45)' : isFinite(v)&&v<25.5 ? 'rgba(200,146,42,0.45)' : 'rgba(76,107,167,0.4)';
+    var v=_vrmSocVolt,lo=VRM_BATT_ZONES[0].upTo,warn=VRM_BATT_ZONES[1].upTo;
+    var pctColor  = isFinite(v)&&v<lo ? '#c03018' : isFinite(v)&&v<warn ? '#b07010' : 'rgb(0,50,190)';
+    var stColor   = isFinite(v)&&v<lo ? 'rgb(160,60,40)' : isFinite(v)&&v<warn ? 'rgb(150,100,20)' : 'rgb(90,108,150)';
+    var shadColor = isFinite(v)&&v<lo ? 'rgba(224,92,74,0.45)' : isFinite(v)&&v<warn ? 'rgba(200,146,42,0.45)' : 'rgba(76,107,167,0.4)';
     return{type:'group',children:[
       {type:'image',style:imgStyle,clipPath:{type:'sector',shape:{cx:cx,cy:cy,r:outerR,r0:innerR,startAngle:0,endAngle:end,transition:'endAngle',enterFrom:{endAngle:0}}}},
       {type:'image',style:imgStyle,clipPath:{type:'polygon',shape:{points:ptrPts(end)},extra:{end:end,transition:'end',enterFrom:{end:0}},during:function(d){d.setShape('points',ptrPts(d.getExtra('end')));}}},
