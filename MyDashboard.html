@@ -2173,9 +2173,9 @@ function vrmWeatherCard(label) {
 
 const VRM_PANEL = '/assets/custom-gauge-panel.png';
 const VRM_BATT_ZONES = [
-  { upTo: 24.0, color: '#e0556b', label: 'low (<24V)'  },
-  { upTo: 25.0, color: '#f0a23a', label: 'warn (24–25V)' },
-  { upTo: Infinity, color: '#36c2a4', label: 'good (>25V)' },
+  { upTo: 23.6, color: '#e0556b', label: 'low'  },
+  { upTo: 24.6, color: '#f0a23a', label: 'warn' },
+  { upTo: Infinity, color: '#36c2a4', label: 'good' },
 ];
 const VRM_RANGES = {
   battV:[23.0,27.2], battA:[-150,150], gridV:[100,140], gridA:[0,30],
@@ -2187,9 +2187,10 @@ const VRM_TEMP_IDS  = ['fridge','kitchen','vicroom','engroom'];
 function vrmHex2Rgb(h){h=h.replace('#','');return[parseInt(h.substr(0,2),16),parseInt(h.substr(2,2),16),parseInt(h.substr(4,2),16)];}
 function vrmLerp(a,b,t){var A=vrmHex2Rgb(a),B=vrmHex2Rgb(b);return'rgb('+Math.round(A[0]+(B[0]-A[0])*t)+','+Math.round(A[1]+(B[1]-A[1])*t)+','+Math.round(A[2]+(B[2]-A[2])*t)+')';}
 function vrmZoneStops(zones,min,max){
-  var span=max-min,anchors=[[0,zones[0].color]],stops=[],N=60;
-  zones.forEach(function(z){var f=z.upTo===Infinity?1:Math.max(0,Math.min(1,(z.upTo-min)/span));anchors.push([f,z.color]);});
-  anchors[anchors.length-1][0]=1;
+  // each zone holds its own colour; blend only over a short band (5% of span) around each threshold
+  var span=max-min,blend=0.05,anchors=[[0,zones[0].color]],stops=[],N=60;
+  zones.forEach(function(z,i){var nx=zones[i+1];if(!nx||z.upTo===Infinity)return;var f=(z.upTo-min)/span;anchors.push([Math.max(0,Math.min(1,f-blend/2)),z.color],[Math.max(0,Math.min(1,f+blend/2)),nx.color]);});
+  anchors.push([1,zones[zones.length-1].color]);
   for(var i=0;i<=N;i++){var f=i/N,j=0;while(j<anchors.length-1&&anchors[j+1][0]<f)j++;var a=anchors[j],b=anchors[Math.min(j+1,anchors.length-1)],t=b[0]>a[0]?(f-a[0])/(b[0]-a[0]):0;stops.push([f,vrmLerp(a[1],b[1],Math.max(0,Math.min(1,t)))]);}
   return stops;
 }
@@ -2207,10 +2208,10 @@ var _vrmSocChart=null,_vrmSocReady=false,_vrmSocVal=0,_vrmSocState='',_vrmSocSta
     function pt(r,rad){return[Math.cos(rad)*r+cx,-Math.sin(rad)*r+cy];}
     function ptrPts(ang){return[pt(outerR,ang),pt(outerR,ang+Math.PI*0.03),pt(ptrInner,ang)];}
     var imgStyle={image:VRM_PANEL,x:cx-outerR,y:cy-outerR,width:outerR*2,height:outerR*2};
-    var v=_vrmSocVolt;
-    var pctColor  = isFinite(v)&&v<25.0 ? '#c03018' : isFinite(v)&&v<25.5 ? '#b07010' : 'rgb(0,50,190)';
-    var stColor   = isFinite(v)&&v<25.0 ? 'rgb(160,60,40)' : isFinite(v)&&v<25.5 ? 'rgb(150,100,20)' : 'rgb(90,108,150)';
-    var shadColor = isFinite(v)&&v<25.0 ? 'rgba(224,92,74,0.45)' : isFinite(v)&&v<25.5 ? 'rgba(200,146,42,0.45)' : 'rgba(76,107,167,0.4)';
+    var v=_vrmSocVolt,lo=VRM_BATT_ZONES[0].upTo,warn=VRM_BATT_ZONES[1].upTo;
+    var pctColor  = isFinite(v)&&v<lo ? '#c03018' : isFinite(v)&&v<warn ? '#b07010' : 'rgb(0,50,190)';
+    var stColor   = isFinite(v)&&v<lo ? 'rgb(160,60,40)' : isFinite(v)&&v<warn ? 'rgb(150,100,20)' : 'rgb(90,108,150)';
+    var shadColor = isFinite(v)&&v<lo ? 'rgba(224,92,74,0.45)' : isFinite(v)&&v<warn ? 'rgba(200,146,42,0.45)' : 'rgba(76,107,167,0.4)';
     return{type:'group',children:[
       {type:'image',style:imgStyle,clipPath:{type:'sector',shape:{cx:cx,cy:cy,r:outerR,r0:innerR,startAngle:0,endAngle:end,transition:'endAngle',enterFrom:{endAngle:0}}}},
       {type:'image',style:imgStyle,clipPath:{type:'polygon',shape:{points:ptrPts(end)},extra:{end:end,transition:'end',enterFrom:{end:0}},during:function(d){d.setShape('points',ptrPts(d.getExtra('end')));}}},
