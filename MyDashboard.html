@@ -174,8 +174,8 @@
   .vrm-gauge-row{display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-bottom:12px;}
   /* temp row now lives inside the left gauge card, so spacing comes from that flex gap */
   .vrm-temp-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
-  /* full-width row under the main grid: Orion bars + MultiPlus totals */
-  .vrm-bottom-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
+  /* full-width row under the main grid: Orion bars */
+  .vrm-bottom-row{display:grid;grid-template-columns:1fr;gap:10px;margin-bottom:14px;}
   @media(max-width:640px){.vrm-gauge-row{grid-template-columns:1fr;}.vrm-temp-row{grid-template-columns:repeat(2,1fr);}.vrm-bottom-row{grid-template-columns:1fr;}}
 
   /* AC / CHARGER COLUMN — MultiPlus flip gauges + Skylla tab */
@@ -195,10 +195,12 @@
   .mp-pill.chg{background:rgba(58,170,122,.18);color:#7fd3ac;}
   .mp-btn{font-size:10px;padding:2px 8px;border-radius:8px;background:transparent;color:var(--text-dim);border:.5px solid var(--card-border);cursor:pointer;font-family:'DM Sans',sans-serif;}
   .mp-btn.on{border-color:var(--port);color:var(--port);}
-  .mp-t3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
   .mp-t{background:var(--card-bg);border:.5px solid var(--card-border);border-radius:var(--radius-sm);padding:8px 10px;}
   .mp-t .l{font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--text-dim);}
   .mp-t .v{font-family:'DM Mono',monospace;font-size:16px;font-weight:500;color:var(--text);margin-top:2px;}
+  .mp-tcol{display:flex;flex-direction:column;gap:8px;}
+  .mp-tcol .mp-t{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;}
+  .mp-tcol .mp-t .v{font-size:20px;margin-top:0;}
   .sk-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin:8px 0 4px;}
   .sk-st{font-size:10px;text-align:center;padding:4px 0;border-radius:6px;background:rgba(255,255,255,.05);color:var(--text-dim);}
   .sk-st.on{background:rgba(58,170,122,.18);color:#7fd3ac;font-weight:500;}
@@ -473,9 +475,15 @@
               </div>
             </div>
           </div>
+          <!-- MultiPlus totals: fill the space under the L1/L2 cards -->
+          <div class="mp-tcol">
+            <div class="mp-t"><div class="l">AC out</div><div class="v" id="mpTA">—</div></div>
+            <div class="mp-t"><div class="l">Shore draw</div><div class="v" id="mpTS">—</div></div>
+            <div class="mp-t"><div class="l">Load</div><div class="v" id="mpTW">—</div></div>
+          </div>
         </div>
       </div>
-      <!-- bottom row: Orion XS bars + MultiPlus totals (where the temp gauges used to be) -->
+      <!-- bottom row: Orion XS bars, full width -->
       <div class="vrm-bottom-row">
         <div class="vrm-card" style="padding:12px 16px;">
           <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">
@@ -500,11 +508,6 @@
               <div id="orion-a-bar" style="height:100%;width:0%;background:#f2b338;border-radius:3px;transition:width .6s ease;"></div>
             </div>
           </div>
-        </div>
-        <div class="mp-t3">
-          <div class="mp-t"><div class="l">AC out</div><div class="v" id="mpTA">—</div></div>
-          <div class="mp-t"><div class="l">Shore draw</div><div class="v" id="mpTS">—</div></div>
-          <div class="mp-t"><div class="l">Load</div><div class="v" id="mpTW">—</div></div>
         </div>
       </div>
       <div class="kpi-grid" id="vrm-featured" style="display:none;"></div>
