@@ -3352,22 +3352,45 @@ setInterval(() => {
   }
 }, 30000);
 
+// Chrome only enters full screen straight after a tap, and every page reload drops it. So we
+// remember that full screen is wanted and, after a reload or a voice command, the next tap
+// anywhere puts it back.
+const LS_FS = 'ss_fullscreen';
+let _fsUnloading = false;
+function fsActive() { return !!(document.fullscreenElement || document.webkitFullscreenElement); }
+function fsWant(on) { try { on ? localStorage.setItem(LS_FS, '1') : localStorage.removeItem(LS_FS); } catch(e) {} }
+function fsWanted() { try { return localStorage.getItem(LS_FS) === '1'; } catch(e) { return false; } }
+function fsEnter() {
+  const el = document.documentElement, req = el.requestFullscreen || el.webkitRequestFullscreen;
+  if (!req) return;
+  try { const r = req.call(el); if (r && r.catch) r.catch(() => {}); } catch(e) {}
+}
+function fsArmTap() {
+  document.addEventListener('pointerdown', function onTap() {
+    document.removeEventListener('pointerdown', onTap, true);
+    if (fsWanted() && !fsActive()) fsEnter();
+  }, true);
+}
 function toggleFullscreen() {
-  const btn = document.getElementById('fs-btn');
-  if (!document.fullscreenElement) {
-    (document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen).call(document.documentElement);
+  if (!fsActive()) {
+    fsWant(true);
+    fsEnter();
   } else {
-    (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+    fsWant(false);
+    const exit = document.exitFullscreen || document.webkitExitFullscreen;
+    try { const r = exit.call(document); if (r && r.catch) r.catch(() => {}); } catch(e) {}
   }
 }
-document.addEventListener('fullscreenchange', function() {
+function fsChanged() {
   const btn = document.getElementById('fs-btn');
-  if (btn) btn.textContent = document.fullscreenElement ? '✕' : '⛶';
-});
-document.addEventListener('webkitfullscreenchange', function() {
-  const btn = document.getElementById('fs-btn');
-  if (btn) btn.textContent = document.webkitFullscreenElement ? '✕' : '⛶';
-});
+  if (btn) btn.textContent = fsActive() ? '✕' : '⛶';
+  if (!fsActive() && !_fsUnloading) fsWant(false);   // user swiped out of full screen
+}
+document.addEventListener('fullscreenchange', fsChanged);
+document.addEventListener('webkitfullscreenchange', fsChanged);
+window.addEventListener('pagehide', () => { _fsUnloading = true; });
+window.addEventListener('beforeunload', () => { _fsUnloading = true; });
+if (fsWanted()) fsArmTap();
 
 // ── VOICE CONTROL ──
 // Tap 🎤, speak one command. Uses the browser's speech recognition (Chrome on Android) and
@@ -3469,8 +3492,13 @@ function voiceHandle(raw) {
     return 'Refreshing.';
   }
   if (/\bfull ?screen\b/.test(t)) {
-    toggleFullscreen();
-    return 'Toggling full screen.';
+    if (fsActive()) { toggleFullscreen(); return 'Leaving full screen.'; }
+    fsWant(true);
+    fsArmTap();                                   // in case Chrome refuses: next tap finishes it
+    if (navigator.userActivation && !navigator.userActivation.isActive)
+      return 'Tap the screen once to go full screen.';
+    fsEnter();
+    return 'Full screen.';
   }
   if (/\b(dark|night) (mode|theme)\b/.test(t)) { setTheme('dark'); return 'Dark mode.'; }
   if (/\b(light|day) (mode|theme)\b/.test(t)) { setTheme('light'); return 'Light mode.'; }
