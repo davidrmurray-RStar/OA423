@@ -3360,10 +3360,16 @@ let _fsUnloading = false;
 function fsActive() { return !!(document.fullscreenElement || document.webkitFullscreenElement); }
 function fsWant(on) { try { on ? localStorage.setItem(LS_FS, '1') : localStorage.removeItem(LS_FS); } catch(e) {} }
 function fsWanted() { try { return localStorage.getItem(LS_FS) === '1'; } catch(e) { return false; } }
-function fsEnter() {
+// report=true (the ⛶ button): if the browser refuses, say why on screen instead of doing nothing
+function fsEnter(report) {
   const el = document.documentElement, req = el.requestFullscreen || el.webkitRequestFullscreen;
-  if (!req) return;
-  try { const r = req.call(el); if (r && r.catch) r.catch(() => {}); } catch(e) {}
+  const fail = why => { if (report) voiceBubble('', 'Full screen refused: ' + why); };
+  if (!req) return fail('this browser has no full screen support.');
+  try {
+    const r = req.call(el);
+    if (r && r.catch) r.catch(e => fail((e && e.message) || String(e)));
+  } catch(e) { return fail(e.message || String(e)); }
+  if (report) setTimeout(() => { if (!fsActive()) fail('the browser ignored the request.'); }, 1500);
 }
 function fsArmTap() {
   document.addEventListener('pointerdown', function onTap() {
@@ -3374,7 +3380,7 @@ function fsArmTap() {
 function toggleFullscreen() {
   if (!fsActive()) {
     fsWant(true);
-    fsEnter();
+    fsEnter(true);
   } else {
     fsWant(false);
     const exit = document.exitFullscreen || document.webkitExitFullscreen;
