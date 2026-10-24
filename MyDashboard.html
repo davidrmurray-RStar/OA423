@@ -271,6 +271,18 @@
   .update-hrs-btn{background:transparent;color:var(--brass);border:.5px solid var(--brass);border-radius:16px;
     padding:6px 14px;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:500;cursor:pointer;letter-spacing:.3px;}
   .update-hrs-btn:hover{background:rgba(200,146,42,.1);}
+  /* Voice control */
+  /* sits at the right end of the tab bar so it never covers dashboard tiles */
+  #mic-btn{margin-left:auto;align-self:center;width:38px;height:34px;border-radius:17px;
+    background:rgba(255,255,255,.06);border:.5px solid var(--brass);color:var(--brass-light);font-size:17px;line-height:1;cursor:pointer;
+    transition:all .2s;-webkit-tap-highlight-color:transparent;}
+  #mic-btn.listening{background:var(--brass);color:var(--deep);animation:mic-pulse 1.2s ease-in-out infinite;}
+  @keyframes mic-pulse{0%,100%{box-shadow:0 0 0 0 rgba(200,146,42,.55);}50%{box-shadow:0 0 0 10px rgba(200,146,42,0);}}
+  #voice-bubble{position:fixed;right:20px;top:200px;z-index:10000;max-width:360px;background:#0d1f36;border:.5px solid var(--brass);
+    border-radius:14px;padding:10px 14px;font-family:'DM Sans',sans-serif;font-size:14px;color:#e8f0f8;
+    box-shadow:0 6px 24px rgba(0,0,0,.4);display:none;pointer-events:none;}
+  #voice-bubble .vb-heard{color:#8fa9bf;font-style:italic;}
+  #voice-bubble .vb-reply{margin-top:4px;}
 </style>
 </head>
 <body>
@@ -305,6 +317,7 @@
     <button class="tab" data-tab="tanks" onclick="switchTab('tanks')">Tanks</button>
     <button class="tab" data-tab="maintenance" onclick="switchTab('maintenance')">Maintenance</button>
     <button class="tab" data-tab="documents" onclick="switchTab('documents')">Documents</button>
+    <button onclick="voiceToggle()" id="mic-btn" title="Voice control" style="display:none;">🎤</button>
   </div>
 
   <div class="subtabs" id="maint-subtabs">
@@ -3355,6 +3368,174 @@ document.addEventListener('webkitfullscreenchange', function() {
   const btn = document.getElementById('fs-btn');
   if (btn) btn.textContent = document.webkitFullscreenElement ? '✕' : '⛶';
 });
+
+// ── VOICE CONTROL ──
+// Tap 🎤, speak one command. Uses the browser's speech recognition (Chrome on Android) and
+// reads answers back with speech synthesis. Button stays hidden where recognition isn't supported.
+const VoiceRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+let _voiceRec = null, _voiceListening = false, _voiceBubbleTimer = null;
+
+const VOICE_TABS = [
+  ['intervals',   /\bintervals?\b/],
+  ['spares',      /\bspares?\b|\bspare parts?\b/],
+  ['log',         /\b(maintenance )?log\b/],
+  ['maintenance', /\bmaintenance\b|\bservice\b/],
+  ['live',        /\b(electrical|electric|power|battery|batteries|gauges?|home|main screen)\b/],
+  ['weather',     /\b(weather|wind|windy|forecast|map)\b/],
+  ['cameras',     /\b(cameras?|video)\b/],
+  ['tanks',       /\btanks?\b/],
+  ['documents',   /\b(documents?|docs|manuals?|papers)\b/],
+];
+const VOICE_QUESTION = /\b(what|what's|whats|how|status|levels?|tell|read|report|check)\b/;
+const VOICE_NAV = /\b(show|open|go to|goto|switch to|display|view)\b/;
+const VOICE_STOPWORDS = ['open','show','the','card','diagram','menu','and','display','view'];
+
+function voiceSay(text) {
+  voiceBubble(null, text);
+  if (!('speechSynthesis' in window)) return;
+  try {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'en-US';
+    speechSynthesis.speak(u);
+  } catch(e) {}
+}
+
+function voiceBubble(heard, reply) {
+  const box = document.getElementById('voice-bubble');
+  if (!box) return;
+  if (heard !== null) document.getElementById('vb-heard').textContent = heard ? '“' + heard + '”' : '';
+  if (reply !== null) document.getElementById('vb-reply').textContent = reply || '';
+  box.style.display = 'block';
+  clearTimeout(_voiceBubbleTimer);
+  if (!_voiceListening) _voiceBubbleTimer = setTimeout(() => { box.style.display = 'none'; }, 5000);
+}
+
+function voiceBatteryReport() {
+  if (!_mqttConnected && !isFinite(_vrmSocVolt)) return 'No live battery data right now.';
+  let msg = 'Battery is at ' + Math.round(_vrmSocVal) + ' percent';
+  if (isFinite(_vrmSocVolt)) msg += ', ' + _vrmSocVolt.toFixed(1) + ' volts';
+  const amps = _mqttData.battI;
+  if (isFinite(amps) && Math.abs(amps) >= 1) msg += amps > 0 ? ', charging at ' + Math.round(amps) + ' amps' : ', drawing ' + Math.round(-amps) + ' amps';
+  if (_vrmSocState) msg += '. Inverter is ' + _vrmSocState;
+  return msg + '.';
+}
+
+function voiceShoreReport() {
+  const v = [_mqttData.gV, _mqttData.g2V].filter(x => isFinite(x));
+  if (!v.length) return 'No shore power data right now.';
+  const on = v.filter(x => x > 50);
+  return on.length ? 'Shore power is connected at ' + Math.round(on[0]) + ' volts.' : 'Shore power is not connected.';
+}
+
+function voiceTankReport() {
+  const ids = Object.keys(_tankDevices).filter(id => _tankDevices[id].data);
+  if (!ids.length) return 'No tank readings right now.';
+  return ids.map(id => {
+    const d = _tankDevices[id].data;
+    const full = [d.s1, d.s2, d.s3, d.s4].filter(s => s === 100).length * 25;
+    return (TANK_TYPE_NAME[d.type] || 'Tank') + ' about ' + full + ' percent';
+  }).join(', ') + '.';
+}
+
+function voiceFindDoc(t) {
+  const words = t.split(/\s+/);
+  let best = null, bestScore = 0;
+  DOCS.forEach(d => {
+    const score = d.title.toLowerCase().split(/[^a-z0-9]+/)
+      .filter(w => w.length > 2 && !VOICE_STOPWORDS.includes(w) && words.includes(w)).length;
+    if (score > bestScore) { best = d; bestScore = score; }
+  });
+  return best;
+}
+
+// Returns the spoken reply. Order matters: specific commands before generic tab names.
+function voiceHandle(raw) {
+  const t = raw.toLowerCase().replace(/[.,!?]/g, '').trim();
+  const asking = VOICE_QUESTION.test(t), nav = VOICE_NAV.test(t);
+
+  if (/\b(help|what can i say|commands)\b/.test(t))
+    return 'Try: show tanks, cameras, weather, maintenance log, battery status, shore power, tank levels, refresh, restart cameras, open insurance card, or close.';
+  if (/\b(close|dismiss|go back|never mind|cancel)\b/.test(t)) {
+    docClose();
+    return 'Closed.';
+  }
+  if (/\brestart\b.*\bcameras?\b|\bcameras?\b.*\brestart\b/.test(t)) {
+    switchTab('cameras'); camRestartService();
+    return 'Restarting the cameras.';
+  }
+  if (/\b(refresh|reload|update)\b/.test(t)) {
+    vrmForceRefresh();
+    return 'Refreshing.';
+  }
+  if (/\bfull ?screen\b/.test(t)) {
+    toggleFullscreen();
+    return 'Toggling full screen.';
+  }
+  if (/\b(dark|night) (mode|theme)\b/.test(t)) { setTheme('dark'); return 'Dark mode.'; }
+  if (/\b(light|day) (mode|theme)\b/.test(t)) { setTheme('light'); return 'Light mode.'; }
+
+  if (/\bshore\b/.test(t) && !nav) return voiceShoreReport();
+  if (/\b(battery|batteries|charge|soc|volts?|voltage)\b/.test(t) && !nav) return voiceBatteryReport();
+  if (/\btanks?\b|\bwater\b/.test(t) && asking && !nav) return voiceTankReport();
+
+  const doc = voiceFindDoc(t);
+  if (doc) {
+    switchTab('documents');
+    docOpen(doc.file, doc.title);
+    return 'Opening ' + doc.title + '.';
+  }
+  for (const [tab, re] of VOICE_TABS) {
+    if (re.test(t)) {
+      docClose();
+      switchTab(tab);
+      const label = {live:'electrical', log:'maintenance log'}[tab] || tab;
+      return 'Showing ' + label + '.';
+    }
+  }
+  return null;
+}
+
+function voiceToggle() {
+  if (_voiceListening) { try { _voiceRec.stop(); } catch(e) {} return; }
+  if (!_voiceRec) {
+    _voiceRec = new VoiceRecognition();
+    _voiceRec.lang = 'en-US';
+    _voiceRec.interimResults = true;
+    _voiceRec.maxAlternatives = 3;
+    _voiceRec.continuous = false;
+    _voiceRec.onresult = function(ev) {
+      const res = ev.results[ev.results.length - 1];
+      voiceBubble(res[0].transcript, null);
+      if (!res.isFinal) return;
+      // Try each alternative transcript until one matches a command
+      for (let i = 0; i < res.length; i++) {
+        const reply = voiceHandle(res[i].transcript);
+        if (reply) { voiceBubble(res[i].transcript, null); voiceSay(reply); return; }
+      }
+      voiceSay('Sorry, I didn’t catch a command. Say help for options.');
+    };
+    _voiceRec.onerror = function(ev) {
+      const msg = ev.error === 'not-allowed' ? 'Microphone permission is blocked for this page.'
+        : ev.error === 'network' ? 'Speech recognition needs an internet connection.'
+        : ev.error === 'no-speech' ? 'I didn’t hear anything.' : 'Voice error: ' + ev.error;
+      voiceBubble('', msg);
+    };
+    _voiceRec.onend = function() {
+      _voiceListening = false;
+      document.getElementById('mic-btn').classList.remove('listening');
+      voiceBubble(null, null);
+    };
+  }
+  try { speechSynthesis.cancel(); } catch(e) {}
+  _voiceListening = true;
+  document.getElementById('mic-btn').classList.add('listening');
+  voiceBubble('', 'Listening…');
+  try { _voiceRec.start(); } catch(e) { _voiceListening = false; document.getElementById('mic-btn').classList.remove('listening'); }
+}
+
+if (VoiceRecognition) window.addEventListener('DOMContentLoaded', () => { document.getElementById('mic-btn').style.display = ''; });
 </script>
+<div id="voice-bubble"><div class="vb-heard" id="vb-heard"></div><div class="vb-reply" id="vb-reply"></div></div>
 </body>
 </html>
