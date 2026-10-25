@@ -204,8 +204,6 @@
   .sk-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin:8px 0 4px;}
   .sk-st{font-size:10px;text-align:center;padding:4px 0;border-radius:6px;background:rgba(255,255,255,.05);color:var(--text-dim);}
   .sk-st.on{background:rgba(58,170,122,.18);color:#7fd3ac;font-weight:500;}
-  .sk-bar{height:8px;border-radius:4px;background:rgba(255,255,255,.07);overflow:hidden;display:flex;}
-  .sk-bar>div{height:100%;transition:width .6s ease;}
 
   /* CHART */
   .chart-card{background:var(--card-bg);border:.5px solid var(--card-border);border-radius:var(--radius);padding:16px;margin-bottom:16px;}
@@ -474,19 +472,12 @@
           <!-- Skylla-IP65 pane -->
           <div class="pw-pane" id="pw-sk" hidden>
             <div class="vrm-card">
-              <div class="mp-hd"><span class="mp-name">Skylla-IP65 24/35</span><span class="mp-pill off" id="sk-badge">No data</span></div>
+              <div class="mp-hd"><span class="mp-name">Skylla-IP65 12/70</span><span class="mp-pill off" id="sk-badge">No data</span></div>
               <div class="sk-steps"><div class="sk-st" id="sk-s3">Bulk</div><div class="sk-st" id="sk-s4">Absorption</div><div class="sk-st" id="sk-s6">Float / Storage</div></div>
               <div class="mp-g2" id="sk-gauges"></div>
               <div class="mp-cap" id="sk-ac" style="margin-top:6px;"></div>
             </div>
-            <div class="vrm-card">
-              <div class="mp-hd"><span class="mp-name">DVCC charge budget</span><span id="sk-budget" style="font-family:'DM Mono',monospace;font-size:12px;">—</span></div>
-              <div class="sk-bar" style="margin-top:6px;"><div id="sk-bar-sk" style="width:0;background:#3aaa7a;"></div><div id="sk-bar-mp" style="width:0;background:#378add;"></div></div>
-              <div style="display:flex;gap:12px;margin-top:6px;font-size:10px;color:var(--text-dim);">
-                <span><i style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#3aaa7a;margin-right:4px;"></i>Skylla</span>
-                <span><i style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#378add;margin-right:4px;"></i>MultiPlus chg</span>
-              </div>
-            </div>
+            <div class="mp-t" style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;margin-top:12px;"><div class="l">12 V charge power</div><div class="v" id="sk-w" style="margin-top:0;">—</div></div>
           </div>
           <!-- MultiPlus totals: fill the space under the L1/L2 cards -->
           <div class="mp-tcol">
@@ -2644,6 +2635,7 @@ async function liveTick() {
       var path=e[0], value=e[1];
       if(value!==null && value!==undefined) mqttHandle(base+path, value);
     });
+    skCheckPresent(json.data);
   } catch(e) {
     _mqttConnected = false;
     if (!_srvDownSince) _srvDownSince = Date.now();
@@ -2821,8 +2813,8 @@ setInterval(function(){
   if(ch)mpRender();
 },1000);
 
-// ── Skylla-IP65 24/35 (VE.Can) ───────────────────────────────────────────────
-const SK_MAX_A = 35, SK_AC_MAX_A = 10.5, DVCC_CAP_A = 85;
+// ── Skylla-IP65 12/70 (VE.Can) — charges the separate 12 V bank, not the 24 V house bank
+const SK_MAX_A = 70, SK_ABS_V = 14.4;
 const SK = {v:NaN,a:NaN,state:NaN,acA:NaN,acLim:NaN,seen:0};
 const SK_STATES = {0:'Off',2:'Fault',3:'Bulk',4:'Absorption',5:'Float',6:'Storage',7:'Equalize',11:'Power Supply',245:'Starting up',252:'Ext Control'};
 function skRender(){
@@ -2834,18 +2826,19 @@ function skRender(){
   [['sk-s3',[3]],['sk-s4',[4,7]],['sk-s6',[5,6]]].forEach(function(p){
     var el=document.getElementById(p[0]); if(el) el.classList.toggle('on',has&&p[1].indexOf(st)>=0);
   });
-  g.innerHTML=mpGauge('output',on?mpF(SK.v,1):'—',(SK.v-22)/8,'#3aaa7a','V','Abs 28.8 V',false)
-             +mpGauge('output',on?mpF(SK.a,1):'—',SK.a/SK_MAX_A,'#3aaa7a','A','Max '+SK_MAX_A+' A',false);
+  var vOk=has&&isFinite(SK.v), aOk=on&&isFinite(SK.a);
+  g.innerHTML=mpGauge('output',vOk?mpF(SK.v,1):'—',(SK.v-11)/4.5,'#3aaa7a','V','Abs '+SK_ABS_V+' V',false)
+             +mpGauge('output',aOk?mpF(SK.a,1):'—',SK.a/SK_MAX_A,'#3aaa7a','A','Max '+SK_MAX_A+' A',false);
   var ac=document.getElementById('sk-ac');
-  if(ac) ac.textContent=isFinite(SK.acA)?'AC in '+SK.acA.toFixed(1)+' A of '+(isFinite(SK.acLim)?SK.acLim.toFixed(1):SK_AC_MAX_A)+' A limit':'';
-  // DVCC budget: Skylla + MultiPlus charge current (vebus Dc/0/Current > 0 = charging)
-  var skA=(on&&isFinite(SK.a))?Math.max(0,SK.a):0;
-  var mpA=MP.reduce(function(s,u){return s+(isFinite(u.dcA)&&u.dcA>0?u.dcA:0);},0);
-  var tot=skA+mpA;
-  var b=document.getElementById('sk-budget'); if(b){b.textContent=tot.toFixed(1)+' / '+DVCC_CAP_A+' A';b.style.color=tot>DVCC_CAP_A*0.95?'var(--warn)':'var(--text)';}
-  var b1=document.getElementById('sk-bar-sk'),b2=document.getElementById('sk-bar-mp');
-  if(b1)b1.style.width=Math.min(100,skA/DVCC_CAP_A*100)+'%';
-  if(b2)b2.style.width=Math.min(100-Math.min(100,skA/DVCC_CAP_A*100),mpA/DVCC_CAP_A*100)+'%';
+  if(ac) ac.textContent=(has&&isFinite(SK.acA))?'AC in '+SK.acA.toFixed(1)+' A'+(isFinite(SK.acLim)?' of '+SK.acLim.toFixed(1)+' A limit':''):'';
+  var w=document.getElementById('sk-w');
+  if(w) w.textContent=(vOk&&aOk)?Math.round(Math.max(0,SK.v*SK.a))+' W':'—';
+}
+// Skylla is AC-powered: off shore power it drops off VE.Can, so clear the card
+// when /api/live stops carrying charger values instead of showing stale numbers.
+function skCheckPresent(data){
+  var any=Object.keys(data).some(function(k){return k.indexOf('charger/')===0&&data[k]!==null&&data[k]!==undefined;});
+  if(!any&&SK.seen){Object.assign(SK,{v:NaN,a:NaN,state:NaN,acA:NaN,acLim:NaN,seen:0});skRender();}
 }
 function pwTab(t){
   document.querySelectorAll('.pw-tab').forEach(function(b){b.classList.toggle('active',b.dataset.pw===t);});
