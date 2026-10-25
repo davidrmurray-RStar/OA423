@@ -2818,6 +2818,7 @@ setInterval(function(){
 // ── Skylla-IP65 12/70 (VE.Can) — charges the separate 12 V bank, not the 24 V house bank
 // 3-output model: Dc/0..2 are the three isolated outputs (they share the 70 A total).
 const SK_MAX_A = 70, SK_ABS_V = 14.4, SK_V_MIN = 11, SK_V_MAX = 15.5;
+const SK_OUT_NAMES = ['House','Eng. Port','Eng. Stbd.'];
 function skBlankOuts(){return [0,1,2].map(function(){return {v:NaN,a:NaN};});}
 const SK = {out:skBlankOuts(),state:NaN,acA:NaN,acLim:NaN,seen:0};
 const SK_STATES = {0:'Off',2:'Fault',3:'Bulk',4:'Absorption',5:'Float',6:'Storage',7:'Equalize',11:'Power Supply',245:'Starting up',252:'Ext Control'};
@@ -2834,7 +2835,7 @@ function skRender(){
   g.innerHTML=SK.out.map(function(o,i){
     var vOk=has&&isFinite(o.v), aOk=on&&isFinite(o.a);
     if(vOk&&aOk){w+=Math.max(0,o.v*o.a);wOk=true;}
-    return skDualGauge('Out '+(i+1),vOk?o.v:NaN,aOk?o.a:NaN);
+    return skDualGauge(SK_OUT_NAMES[i],vOk?o.v:NaN,aOk?o.a:NaN);
   }).join('');
   var ac=document.getElementById('sk-ac');
   if(ac) ac.textContent=(has&&isFinite(SK.acA))?'AC in '+SK.acA.toFixed(1)+' A'+(isFinite(SK.acLim)?' of '+SK.acLim.toFixed(1)+' A limit':''):'';
