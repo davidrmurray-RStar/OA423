@@ -79,6 +79,10 @@ def _mqtt_bridge_start():
         if not msg.topic.startswith(prefix):
             return
         path = msg.topic[len(prefix):]
+        if not msg.payload:  # empty payload = device went away (e.g. Skylla off shore power)
+            with _live_lock:
+                _live_cache.pop(path, None)
+            return
         try:
             val = json.loads(msg.payload).get("value")
             with _live_lock:
