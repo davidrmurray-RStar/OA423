@@ -203,6 +203,7 @@
   .mp-tcol .mp-t .v{font-size:20px;margin-top:0;}
   .sk-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin:8px 0 4px;}
   .sk-st{font-size:10px;text-align:center;padding:4px 0;border-radius:6px;background:rgba(255,255,255,.05);color:var(--text-dim);}
+  .sk-g{padding-top:2px;}
   .sk-st.on{background:rgba(58,170,122,.18);color:#7fd3ac;font-weight:500;}
 
   /* CHART */
@@ -475,7 +476,8 @@
               <div class="mp-hd"><span class="mp-name">Skylla-IP65 12/70</span><span class="mp-pill off" id="sk-badge">No data</span></div>
               <div class="sk-steps"><div class="sk-st" id="sk-s3">Bulk</div><div class="sk-st" id="sk-s4">Absorption</div><div class="sk-st" id="sk-s6">Float / Storage</div></div>
               <div class="mp-g2" id="sk-gauges"></div>
-              <div class="mp-cap" id="sk-ac" style="margin-top:6px;"></div>
+              <div class="mp-cap" style="margin-top:2px;"><span style="color:#7fd3ac;">● Volts</span> &nbsp; <span style="color:#f5c971;">● Amps</span> (70 A shared)</div>
+              <div class="mp-cap" id="sk-ac" style="margin-top:4px;"></div>
             </div>
             <div class="mp-t" style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;margin-top:12px;"><div class="l">12 V charge power</div><div class="v" id="sk-w" style="margin-top:0;">—</div></div>
           </div>
@@ -2702,8 +2704,8 @@ function mqttHandle(topic,value){
   // Skylla-IP65 on VE.Can → com.victronenergy.charger.<inst>
   if(parts[0]==='charger'&&parts.length>=3){
     var cp=parts.slice(2).join('/'), cn=Number(value);
-    if(cp==='Dc/0/Voltage')SK.v=cn;
-    else if(cp==='Dc/0/Current')SK.a=cn;
+    var dm=/^Dc\/([0-2])\/(Voltage|Current)$/.exec(cp);
+    if(dm)SK.out[+dm[1]][dm[2]==='Voltage'?'v':'a']=cn;
     else if(cp==='State')SK.state=cn;
     else if(cp==='Ac/In/L1/I')SK.acA=cn;
     else if(cp==='Ac/In/CurrentLimit')SK.acLim=cn;
@@ -2814,8 +2816,10 @@ setInterval(function(){
 },1000);
 
 // ── Skylla-IP65 12/70 (VE.Can) — charges the separate 12 V bank, not the 24 V house bank
-const SK_MAX_A = 70, SK_ABS_V = 14.4;
-const SK = {v:NaN,a:NaN,state:NaN,acA:NaN,acLim:NaN,seen:0};
+// 3-output model: Dc/0..2 are the three isolated outputs (they share the 70 A total).
+const SK_MAX_A = 70, SK_ABS_V = 14.4, SK_V_MIN = 11, SK_V_MAX = 15.5;
+function skBlankOuts(){return [0,1,2].map(function(){return {v:NaN,a:NaN};});}
+const SK = {out:skBlankOuts(),state:NaN,acA:NaN,acLim:NaN,seen:0};
 const SK_STATES = {0:'Off',2:'Fault',3:'Bulk',4:'Absorption',5:'Float',6:'Storage',7:'Equalize',11:'Power Supply',245:'Starting up',252:'Ext Control'};
 function skRender(){
   var g=document.getElementById('sk-gauges'); if(!g) return;
@@ -2826,19 +2830,35 @@ function skRender(){
   [['sk-s3',[3]],['sk-s4',[4,7]],['sk-s6',[5,6]]].forEach(function(p){
     var el=document.getElementById(p[0]); if(el) el.classList.toggle('on',has&&p[1].indexOf(st)>=0);
   });
-  var vOk=has&&isFinite(SK.v), aOk=on&&isFinite(SK.a);
-  g.innerHTML=mpGauge('output',vOk?mpF(SK.v,1):'—',(SK.v-11)/4.5,'#3aaa7a','V','Abs '+SK_ABS_V+' V',false)
-             +mpGauge('output',aOk?mpF(SK.a,1):'—',SK.a/SK_MAX_A,'#3aaa7a','A','Max '+SK_MAX_A+' A',false);
+  var w=0, wOk=false;
+  g.innerHTML=SK.out.map(function(o,i){
+    var vOk=has&&isFinite(o.v), aOk=on&&isFinite(o.a);
+    if(vOk&&aOk){w+=Math.max(0,o.v*o.a);wOk=true;}
+    return skDualGauge('Out '+(i+1),vOk?o.v:NaN,aOk?o.a:NaN);
+  }).join('');
   var ac=document.getElementById('sk-ac');
   if(ac) ac.textContent=(has&&isFinite(SK.acA))?'AC in '+SK.acA.toFixed(1)+' A'+(isFinite(SK.acLim)?' of '+SK.acLim.toFixed(1)+' A limit':''):'';
-  var w=document.getElementById('sk-w');
-  if(w) w.textContent=(vOk&&aOk)?Math.round(Math.max(0,SK.v*SK.a))+' W':'—';
+  var we=document.getElementById('sk-w');
+  if(we) we.textContent=wOk?Math.round(w)+' W':'—';
+}
+// One gauge per output: outer arc = voltage (green), inner arc = current (amber), both read out in the middle.
+function skDualGauge(name,v,a){
+  var fv=(v-SK_V_MIN)/(SK_V_MAX-SK_V_MIN), fa=a/SK_MAX_A;
+  function arc(r,f){f=Math.max(.001,Math.min(1,isFinite(f)?f:0));var p=mpPt(r,0),q=mpPt(r,f);return'M'+p[0]+' '+p[1]+' A'+r+' '+r+' 0 0 1 '+q[0]+' '+q[1];}
+  return '<div class="sk-g"><svg viewBox="0 0 180 96" width="100%">'
+   +'<path d="'+arc(70,1)+'" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="8" stroke-linecap="round"/>'
+   +'<path d="'+arc(70,fv)+'" fill="none" stroke="#3aaa7a" stroke-width="8" stroke-linecap="round" style="transition:all .5s"/>'
+   +'<path d="'+arc(56,1)+'" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="8" stroke-linecap="round"/>'
+   +'<path d="'+arc(56,fa)+'" fill="none" stroke="#f2b338" stroke-width="8" stroke-linecap="round" style="transition:all .5s"/>'
+   +'<text x="90" y="62" text-anchor="middle" fill="#7fd3ac" font-size="16" font-weight="500" font-family="DM Mono,monospace">'+mpF(v,1)+' V</text>'
+   +'<text x="90" y="82" text-anchor="middle" fill="#f5c971" font-size="16" font-weight="500" font-family="DM Mono,monospace">'+mpF(a,1)+' A</text>'
+   +'</svg><div class="mp-cap">'+name.toUpperCase()+'</div></div>';
 }
 // Skylla is AC-powered: off shore power it drops off VE.Can, so clear the card
 // when /api/live stops carrying charger values instead of showing stale numbers.
 function skCheckPresent(data){
   var any=Object.keys(data).some(function(k){return k.indexOf('charger/')===0&&data[k]!==null&&data[k]!==undefined;});
-  if(!any&&SK.seen){Object.assign(SK,{v:NaN,a:NaN,state:NaN,acA:NaN,acLim:NaN,seen:0});skRender();}
+  if(!any&&SK.seen){Object.assign(SK,{out:skBlankOuts(),state:NaN,acA:NaN,acLim:NaN,seen:0});skRender();}
 }
 function pwTab(t){
   document.querySelectorAll('.pw-tab').forEach(function(b){b.classList.toggle('active',b.dataset.pw===t);});
