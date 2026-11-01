@@ -293,6 +293,28 @@ class Handler(BaseHTTPRequestHandler):
             body = json.dumps({"ok": True, "connected": _live_connected, "data": data}).encode()
             return self._send(200, body, "application/json")
 
+        if path == "/api/version":
+            repo = Path.home() / "OA423-repo"
+            try:
+                rev = subprocess.run(["git", "-C", str(repo), "rev-parse", "--short", "HEAD"],
+                                     capture_output=True, text=True, timeout=5).stdout.strip()
+            except Exception:
+                rev = ""
+            body = json.dumps({"ok": True, "rev": rev, "started": STATE["started"]}).encode()
+            return self._send(200, body, "application/json")
+
+        if path == "/api/update":
+            # One-tap update from the dashboard: run ~/run.sh fully detached (new session),
+            # so it survives run.sh killing this server to restart it with new code.
+            runsh = Path.home() / "run.sh"
+            if not runsh.exists():
+                return self._send(404, b'{"ok":false,"error":"run.sh not found (tablet only)"}', "application/json")
+            log = open(Path.home() / "update.log", "a")
+            log.write(f"\n[{time.ctime()}] update requested from dashboard\n"); log.flush()
+            subprocess.Popen(["bash", str(runsh)], stdout=log, stderr=log, stdin=subprocess.DEVNULL,
+                             cwd=str(Path.home()), start_new_session=True)
+            return self._send(200, b'{"ok":true}', "application/json")
+
         if path == "/api/restart-server":
             self._send(200, b'{"ok":true}', "application/json")
             threading.Thread(target=lambda: (time.sleep(1), os._exit(0)), daemon=True).start()

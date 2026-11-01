@@ -434,6 +434,7 @@
         <div style="display:flex;align-items:center;gap:10px;">
           <span id="vrm-updated" style="font-size:10px;color:var(--text-dim);font-family:'DM Mono',monospace;"></span>
           <button id="vrm-refresh-btn" onclick="vrmForceRefresh()" style="font-size:11px;padding:4px 10px;border-radius:8px;border:.5px solid var(--card-border);background:transparent;color:var(--text-dim);cursor:pointer;font-family:'DM Sans',sans-serif;-webkit-tap-highlight-color:transparent;">⟳ Refresh</button>
+          <button id="app-update-btn" onclick="appUpdate()" style="font-size:11px;padding:4px 10px;border-radius:8px;border:.5px solid var(--card-border);background:transparent;color:var(--text-dim);cursor:pointer;font-family:'DM Sans',sans-serif;-webkit-tap-highlight-color:transparent;">⬇ Update</button>
           <button id="srv-restart-btn" onclick="serverRestart()" style="font-size:11px;padding:4px 10px;border-radius:8px;border:.5px solid var(--card-border);background:transparent;color:var(--text-dim);cursor:pointer;font-family:'DM Sans',sans-serif;-webkit-tap-highlight-color:transparent;">↺ Server</button>
         </div>
       </div>
@@ -2900,6 +2901,33 @@ function mqttTempGauges(){
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
+// One-tap update: server runs ~/run.sh (git pull + copy + restart if code changed),
+// then we wait for the server to answer again and reload onto the new page.
+async function appUpdate() {
+  const btn = document.getElementById('app-update-btn');
+  const set = t => { if (btn) btn.textContent = t; };
+  if (btn) btn.disabled = true;
+  let before = '';
+  try { before = (await (await fetchT('/api/version', 4000)).json()).rev || ''; } catch(e) {}
+  set('⬇ Updating…');
+  try {
+    const r = await fetchT('/api/update', 8000);
+    const j = await r.json();
+    if (!j.ok) { set('⬇ ' + (j.error || 'failed')); setTimeout(() => { set('⬇ Update'); btn.disabled = false; }, 4000); return; }
+  } catch(e) { set('⬇ No server'); setTimeout(() => { set('⬇ Update'); btn.disabled = false; }, 4000); return; }
+  const t0 = Date.now();
+  await new Promise(r => setTimeout(r, 6000));          // git pull (up to ~60 s offline) + restart
+  while (Date.now() - t0 < 90000) {
+    try {
+      const v = (await (await fetchT('/api/version', 3000)).json()).rev || '';
+      if (v && v !== before) { set('⬇ ' + v + ' ✓'); setTimeout(() => location.reload(), 800); return; }
+      if (v && Date.now() - t0 > 20000) { set('⬇ Up to date'); setTimeout(() => location.reload(), 1200); return; }
+    } catch(e) {}
+    set('⬇ Updating… ' + Math.round((Date.now() - t0) / 1000) + 's');
+    await new Promise(r => setTimeout(r, 2000));
+  }
+  set('⬇ Check Termux'); btn.disabled = false;
+}
 async function serverRestart() {
   const btn = document.getElementById('srv-restart-btn');
   if (btn) { btn.disabled = true; btn.textContent = '↺ …'; }
