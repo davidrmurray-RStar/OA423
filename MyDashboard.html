@@ -2212,7 +2212,7 @@ var _vrmSocChart=null,_vrmSocReady=false,_vrmSocVal=0,_vrmSocState='',_vrmSocSta
   function gtxt(v){return(Math.max(0,v)/MAX*100).toFixed(0)+'%';}
   function renderItem(params,api){
     var soc=api.value(1);
-    var end=(soc/MAX)*2*Math.PI;  // angle in radians directly from SOC %
+    var end=(soc/MAX)*2*Math.PI;  // SOC % → radians; arc + pointer sweep counter-clockwise from 3 o'clock
     var cx=params.coordSys.cx,cy=params.coordSys.cy;
     function pt(r,rad){return[Math.cos(rad)*r+cx,-Math.sin(rad)*r+cy];}
     function ptrPts(ang){return[pt(outerR,ang),pt(outerR,ang+Math.PI*0.03),pt(ptrInner,ang)];}
@@ -2222,7 +2222,7 @@ var _vrmSocChart=null,_vrmSocReady=false,_vrmSocVal=0,_vrmSocState='',_vrmSocSta
     var stColor   = isFinite(v)&&v<lo ? 'rgb(160,60,40)' : isFinite(v)&&v<warn ? 'rgb(150,100,20)' : 'rgb(90,108,150)';
     var shadColor = isFinite(v)&&v<lo ? 'rgba(224,92,74,0.45)' : isFinite(v)&&v<warn ? 'rgba(200,146,42,0.45)' : 'rgba(76,107,167,0.4)';
     return{type:'group',children:[
-      {type:'image',style:imgStyle,clipPath:{type:'sector',shape:{cx:cx,cy:cy,r:outerR,r0:innerR,startAngle:0,endAngle:end,transition:'endAngle',enterFrom:{endAngle:0}}}},
+      {type:'image',style:imgStyle,clipPath:{type:'sector',shape:{cx:cx,cy:cy,r:outerR,r0:innerR,startAngle:0,endAngle:-end,clockwise:false,transition:'endAngle',enterFrom:{endAngle:0}}}},
       {type:'image',style:imgStyle,clipPath:{type:'polygon',shape:{points:ptrPts(end)},extra:{end:end,transition:'end',enterFrom:{end:0}},during:function(d){d.setShape('points',ptrPts(d.getExtra('end')));}}},
       {type:'circle',shape:{cx:cx,cy:cy,r:insideR},style:{fill:'#fff',shadowBlur:25,shadowColor:shadColor}},
       {type:'text',extra:{val:soc,transition:'val',enterFrom:{val:0}},style:{text:gtxt(soc),fontSize:50,fontWeight:700,x:cx,y:cy-26,fill:pctColor,align:'center',verticalAlign:'middle',enterFrom:{opacity:0}},during:function(d){d.setStyle('text',gtxt(d.getExtra('val')));}},
