@@ -2850,8 +2850,9 @@ setInterval(function(){
 },1000);
 
 // ── Shore input current limit ────────────────────────────────
-// A card appears for each vebus unit that reports a limit on the /api/live feed,
-// so a renumbered instance shows up on its own instead of leaving a blank card.
+// One card per unit in MP, seeded up front so a unit that stops reporting still
+// shows "No data" rather than disappearing; a vebus instance that isn't in MP
+// (a renumbered or added unit) gets a card of its own when it first reports.
 // The ceiling is fixed at 50 A: the unit publishes its own max (and says 50) but
 // the bridge forwards only the "value" field, so the max never reaches us here.
 const SL_MAX_A = 50, SL_PRESETS = [15,20,25,30,50], SL_TOL = 0.6, SL_CONFIRM_MS = 8000;
@@ -2859,15 +2860,19 @@ const SL_EP_DEFAULT = 'https://192.168.0.55:1881/shore-limit';
 var SL_EP = SL_EP_DEFAULT;
 try{SL_EP=localStorage.getItem('ss_sl_ep')||SL_EP_DEFAULT;}catch(e){}
 const SL = [], SL_IX = {}, SL_NAMES = {};   // cards, instance → card, instance → product name
+function slUnit(inst,name){
+  return {inst:inst,name:name||'',lim:NaN,sel:NaN,touched:false,busy:false,msg:'',cls:''};
+}
+MP.forEach(function(u){ SL_IX[u.inst]=SL.length; SL.push(slUnit(u.inst,u.name)); });
 
 function slEl(i,k){return document.getElementById('sl'+i+'-'+k);}
-function slName(s){return SL_NAMES[s.inst]||('MultiPlus · '+s.inst);}
+function slName(s){return s.name||SL_NAMES[s.inst]||('MultiPlus · '+s.inst);}
 function slLive(inst,n){
   if(!isFinite(n)) return;
   var i=SL_IX[inst];
   if(i===undefined){
     i=SL_IX[inst]=SL.length;
-    SL.push({inst:inst,lim:NaN,sel:NaN,touched:false,busy:false,msg:'',cls:''});
+    SL.push(slUnit(inst,''));
     slBuild();
   }
   var s=SL[i]; s.lim=n;
