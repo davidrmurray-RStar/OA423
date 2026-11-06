@@ -201,6 +201,17 @@
   .mp-tcol{display:flex;flex-direction:column;gap:8px;}
   .mp-tcol .mp-t{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;}
   .mp-tcol .mp-t .v{font-size:20px;margin-top:0;}
+  .sl-row{display:flex;gap:4px;margin:8px 0 6px;}
+  .sl-preset{flex:1;font-size:12px;padding:7px 0;border-radius:8px;border:.5px solid var(--card-border);background:transparent;color:var(--text-dim);cursor:pointer;font-family:'DM Mono',monospace;-webkit-tap-highlight-color:transparent;}
+  .sl-preset.on{border-color:var(--brass);color:var(--brass);background:rgba(200,146,42,.10);}
+  .sl-slider{width:100%;accent-color:var(--brass);margin:2px 0 6px;}
+  .sl-sel{font-family:'DM Mono',monospace;font-size:20px;font-weight:500;color:var(--text);}
+  .sl-apply{width:100%;font-size:12px;padding:8px 0;border-radius:10px;border:.5px solid var(--brass);background:rgba(200,146,42,.12);color:var(--brass);cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:500;letter-spacing:.3px;-webkit-tap-highlight-color:transparent;}
+  .sl-apply:disabled{opacity:.4;cursor:default;}
+  .sl-msg{font-size:10px;font-family:'DM Mono',monospace;text-align:center;margin-top:6px;min-height:12px;color:var(--text-dim);}
+  .sl-msg.ok{color:var(--good);}
+  .sl-msg.err{color:var(--danger);}
+  .sl-ep{width:100%;box-sizing:border-box;font-size:11px;font-family:'DM Mono',monospace;padding:6px 8px;border-radius:8px;border:.5px solid var(--card-border);background:rgba(255,255,255,.04);color:var(--text);}
   .sk-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin:8px 0 4px;}
   .sk-st{font-size:10px;text-align:center;padding:4px 0;border-radius:6px;background:rgba(255,255,255,.05);color:var(--text-dim);}
   .sk-g{padding-top:2px;}
@@ -465,6 +476,7 @@
           <div class="pw-tabs">
             <button class="pw-tab active" data-pw="mp" onclick="pwTab('mp')">MultiPlus</button>
             <button class="pw-tab" data-pw="sk" onclick="pwTab('sk')">Skylla</button>
+            <button class="pw-tab" data-pw="sl" onclick="pwTab('sl')">Shore limit</button>
           </div>
           <!-- MultiPlus pane: per-unit flip gauges (inverter out when inverting, shore in on shore) -->
           <div class="pw-pane" id="pw-mp">
@@ -481,6 +493,21 @@
               <div class="mp-cap" id="sk-ac" style="margin-top:4px;"></div>
             </div>
             <div class="mp-t" style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;margin-top:12px;"><div class="l">12 V charge power</div><div class="v" id="sk-w" style="margin-top:0;">—</div></div>
+          </div>
+          <!-- Shore input current limit: live value per unit, presets/slider, Apply writes via Node-RED -->
+          <div class="pw-pane" id="pw-sl" hidden>
+            <div class="vrm-card" id="sl0"></div>
+            <div class="vrm-card" id="sl1"></div>
+            <div class="vrm-card" style="padding:10px 12px;">
+              <div class="mp-name" style="margin-bottom:6px;">Write endpoint</div>
+              <input class="sl-ep" id="sl-ep" type="url" spellcheck="false" autocapitalize="off"
+                     onchange="slSetEndpoint(this.value)">
+              <div class="sl-msg" id="sl-ep-msg"></div>
+              <div style="font-size:10px;color:var(--text-dim);line-height:1.5;margin-top:4px;">
+                Needs &ldquo;Overruled by remote&rdquo; in VEConfigure. Accept the Cerbo&rsquo;s certificate in
+                the browser once, or the write shows offline.
+              </div>
+            </div>
           </div>
           <!-- MultiPlus totals: fill the space under the L1/L2 cards -->
           <div class="mp-tcol">
@@ -2699,6 +2726,7 @@ function mqttHandle(topic,value){
     else if(vp==='Ac/Out/L1/V')mpSet(vi,{outV:n});
     else if(vp==='Ac/Out/L1/I')mpSet(vi,{outA:n});
     else if(vp==='Ac/ActiveIn/Connected')mpSet(vi,{connRaw:n});
+    else if(vp==='Ac/ActiveIn/CurrentLimit')slLive(vi,n);
     else if(vp==='Dc/0/Current')mpSet(vi,{dcA:n});
     return;
   }
@@ -2816,6 +2844,157 @@ setInterval(function(){
   if(ch)mpRender();
 },1000);
 
+// ── Shore input current limit ────────────────────────────────────────────────
+// The live limit rides in on the same /api/live feed as the gauges; Apply POSTs
+// to the Node-RED /shore-limit flow, then confirms from the feed (falling back
+// to the flow's own GET) so the card only turns green once the unit agrees.
+const SL_MAX_A = 30, SL_PRESETS = [15,20,25,30], SL_TOL = 0.6, SL_CONFIRM_MS = 8000;
+const SL_EP_DEFAULT = 'https://192.168.0.100:1881/shore-limit';
+var SL_EP = SL_EP_DEFAULT;
+try{SL_EP=localStorage.getItem('ss_sl_ep')||SL_EP_DEFAULT;}catch(e){}
+const SL = MP.map(function(u){return {name:u.name,inst:u.inst,lim:NaN,sel:NaN,touched:false,busy:false,msg:'',cls:''};});
+
+function slEl(i,k){return document.getElementById('sl'+i+'-'+k);}
+function slLive(inst,n){
+  var i=MP_INST[inst]; if(i===undefined||!isFinite(n)) return;
+  var s=SL[i]; s.lim=n;
+  if(!s.touched) s.sel=n;     // card tracks the unit until you touch a preset or the slider
+  slUpdate();
+}
+// Cards are built once and updated in place — re-rendering innerHTML would drop a slider mid-drag.
+function slBuild(){
+  SL.forEach(function(s,i){
+    var el=document.getElementById('sl'+i); if(!el||el.dataset.built) return;
+    el.dataset.built='1';
+    el.innerHTML='<div class="mp-hd"><span class="mp-name">'+s.name+'</span>'
+      +'<span class="mp-pill off" id="sl'+i+'-pill">No data</span></div>'
+      +'<div class="sl-row" id="sl'+i+'-presets">'
+      +SL_PRESETS.map(function(p){return '<button class="sl-preset" data-a="'+p+'" onclick="slPick('+i+','+p+',1)">'+p+'</button>';}).join('')
+      +'</div>'
+      +'<input class="sl-slider" id="sl'+i+'-range" type="range" min="0" max="'+SL_MAX_A+'" step="0.5" value="20" oninput="slPick('+i+',this.value,0)">'
+      +'<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">'
+      +'<span style="font-size:10px;color:var(--text-dim);letter-spacing:1px;">SET TO</span>'
+      +'<span class="sl-sel" id="sl'+i+'-val">&mdash;</span></div>'
+      +'<button class="sl-apply" id="sl'+i+'-btn" onclick="slApply('+i+')" disabled>Apply</button>'
+      +'<div class="sl-msg" id="sl'+i+'-msg"></div>';
+  });
+  var ep=document.getElementById('sl-ep'); if(ep&&!ep.value) ep.value=SL_EP;
+  slUpdate();
+}
+function slUpdate(){
+  SL.forEach(function(s,i){
+    var pill=slEl(i,'pill'); if(!pill) return;
+    var has=isFinite(s.lim);
+    pill.className='mp-pill '+(has?'shore':'off');
+    pill.textContent=has?s.lim.toFixed(1)+' A limit':'No data';
+    if(!isFinite(s.sel)) s.sel=has?s.lim:20;
+    var r=slEl(i,'range'); if(r&&!s.touched) r.value=String(s.sel);
+    var ps=slEl(i,'presets');
+    if(ps) Array.prototype.forEach.call(ps.children,function(b){
+      b.classList.toggle('on',Math.abs(s.sel-Number(b.dataset.a))<0.05);
+    });
+    slEl(i,'val').textContent=s.sel.toFixed(1)+' A';
+    var matches=has&&Math.abs(s.sel-s.lim)<0.05;
+    var b=slEl(i,'btn');
+    b.disabled=s.busy||matches;
+    b.textContent=s.busy?'Applying\u2026':matches?'Matches unit':'Apply '+s.sel.toFixed(1)+' A';
+    var m=slEl(i,'msg'); m.className='sl-msg'+(s.cls?' '+s.cls:''); m.textContent=s.msg;
+  });
+}
+function slPick(i,v,fromPreset){
+  var s=SL[i];
+  s.sel=Math.max(0,Math.min(SL_MAX_A,Number(v)));
+  s.touched=true; s.msg=''; s.cls='';
+  if(fromPreset){var r=slEl(i,'range'); if(r)r.value=String(s.sel);}
+  slUpdate();
+}
+// The flow's GET shape isn't fixed, so read it tolerantly: keyed by instance or
+// by unit number, nested or flat, and a bare number for a single-unit answer.
+function slFromPayload(j,inst,unitNo){
+  var seen=0;
+  function num(v){var n=Number(v);return isFinite(n)?n:NaN;}
+  function pick(o){
+    if(o===null||o===undefined||seen++>6) return NaN;
+    if(typeof o==='number'||typeof o==='string') return num(o);
+    if(Array.isArray(o)){
+      for(var k=0;k<o.length;k++){
+        var it=o[k]; if(!it||typeof it!=='object') continue;
+        var id=num(it.instance!==undefined?it.instance:it.inst!==undefined?it.inst:it.unit!==undefined?it.unit:it.id);
+        if(id===inst||id===unitNo) return pick(it.limit!==undefined?it.limit:it.value!==undefined?it.value:it.currentLimit!==undefined?it.currentLimit:it.a);
+      }
+      return o.length===1?pick(o[0]):NaN;
+    }
+    var keys=[String(inst),String(unitNo),'unit'+unitNo,'L'+unitNo,'mp'+unitNo];
+    for(var x=0;x<keys.length;x++) if(o[keys[x]]!==undefined) return pick(o[keys[x]]);
+    var nest=['limits','units','data','result','shoreLimit','shore_limit'];
+    for(var y=0;y<nest.length;y++) if(o[nest[y]]!==undefined){var r=pick(o[nest[y]]);if(isFinite(r))return r;}
+    if(o.limit!==undefined) return pick(o.limit);
+    if(o.value!==undefined) return pick(o.value);
+    return NaN;
+  }
+  return pick(j);
+}
+async function slReadBack(s,unitNo){
+  try{
+    var res=await fetchT(SL_EP,6000,{cache:'no-store'});
+    if(!res.ok) return NaN;
+    return slFromPayload(await res.json(),s.inst,unitNo);
+  }catch(e){ return NaN; }
+}
+// Wait for the live feed to show the new limit; /api/live polls once a second.
+function slWaitLive(i,a,ms){
+  return new Promise(function(done){
+    var t0=Date.now();
+    (function tick(){
+      var v=SL[i].lim;
+      if(isFinite(v)&&Math.abs(v-a)<SL_TOL) return done(v);
+      if(Date.now()-t0>=ms) return done(NaN);
+      setTimeout(tick,500);
+    })();
+  });
+}
+function slErr(e){
+  var m=String((e&&e.message)||e);
+  if(/\b401\b/.test(m)) return '401 \u2014 Node-RED login covers this endpoint';
+  if(/^HTTP /.test(m)) return m.toLowerCase();
+  var origin=SL_EP.split('/').slice(0,3).join('/');
+  return 'no answer from '+origin;
+}
+async function slApply(i){
+  var s=SL[i]; if(s.busy) return;
+  var a=Math.max(0,Math.min(SL_MAX_A,s.sel));
+  s.busy=true; s.msg='writing '+a.toFixed(1)+' A\u2026'; s.cls=''; slUpdate();
+  try{
+    var res=await fetchT(SL_EP,8000,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({instance:s.inst,unit:i+1,limit:a})
+    });
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    var back=await slWaitLive(i,a,SL_CONFIRM_MS);
+    if(!isFinite(back)) back=await slReadBack(s,i+1);
+    s.busy=false;
+    if(isFinite(back)){
+      s.lim=back; s.sel=back; s.touched=false;
+      var agreed=Math.abs(back-a)<SL_TOL;
+      s.msg=(agreed?'unit confirms ':'unit reports ')+back.toFixed(1)+' A';
+      s.cls=agreed?'ok':'err';
+    }else{
+      s.msg='sent \u2014 no read-back yet'; s.cls='';
+    }
+  }catch(e){
+    s.busy=false; s.msg=slErr(e); s.cls='err';
+  }
+  slUpdate();
+}
+function slSetEndpoint(v){
+  SL_EP=String(v||'').trim()||SL_EP_DEFAULT;
+  var ep=document.getElementById('sl-ep'); if(ep) ep.value=SL_EP;
+  try{localStorage.setItem('ss_sl_ep',SL_EP);}catch(e){}
+  var m=document.getElementById('sl-ep-msg');
+  if(m){m.className='sl-msg ok';m.textContent='saved';setTimeout(function(){m.textContent='';m.className='sl-msg';},2000);}
+}
+
 // ── Skylla-IP65 12/70 (VE.Can) — charges the separate 12 V bank, not the 24 V house bank
 // 3-output model: Dc/0..2 are the three isolated outputs (they share the 70 A total).
 const SK_MAX_A = 70, SK_ABS_V = 14.4, SK_V_MIN = 11, SK_V_MAX = 15.5;
@@ -2862,13 +3041,17 @@ function skCheckPresent(data){
   var any=Object.keys(data).some(function(k){return k.indexOf('charger/')===0&&data[k]!==null&&data[k]!==undefined;});
   if(!any&&SK.seen){Object.assign(SK,{out:skBlankOuts(),state:NaN,acA:NaN,acLim:NaN,seen:0});skRender();}
 }
+const PW_PANES = ['mp','sk','sl'];
 function pwTab(t){
+  if(PW_PANES.indexOf(t)<0) t='mp';
   document.querySelectorAll('.pw-tab').forEach(function(b){b.classList.toggle('active',b.dataset.pw===t);});
-  document.getElementById('pw-mp').hidden=(t!=='mp');
-  document.getElementById('pw-sk').hidden=(t!=='sk');
+  PW_PANES.forEach(function(k){var p=document.getElementById('pw-'+k); if(p)p.hidden=(k!==t);});
   try{localStorage.setItem('ss_pw_tab',t);}catch(e){}
 }
-(function(){var t='mp';try{t=localStorage.getItem('ss_pw_tab')||'mp';}catch(e){} if(document.getElementById('pw-mp')){pwTab(t==='sk'?'sk':'mp');mpRender();}})();
+(function(){
+  var t='mp';try{t=localStorage.getItem('ss_pw_tab')||'mp';}catch(e){}
+  if(document.getElementById('pw-mp')){pwTab(t);mpRender();slBuild();}
+})();
 var ORION_STATES={0:'Off',2:'Fault',3:'Bulk',4:'Absorption',5:'Float',6:'Storage',7:'Equalize',11:'Power Supply'};
 function mqttOrionBars(){
   var vEl=document.getElementById('orion-v-val');
