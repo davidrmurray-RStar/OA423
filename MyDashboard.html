@@ -496,8 +496,10 @@
           </div>
           <!-- Shore input current limit: live value per unit, presets/slider, Apply writes via Node-RED -->
           <div class="pw-pane" id="pw-sl" hidden>
-            <div class="vrm-card" id="sl0"></div>
-            <div class="vrm-card" id="sl1"></div>
+            <div id="sl-cards" style="display:flex;flex-direction:column;gap:12px;"></div>
+            <div class="vrm-card" id="sl-empty" style="padding:12px;font-size:11px;color:var(--text-dim);line-height:1.5;">
+              Waiting for a MultiPlus to report its input current limit&hellip;
+            </div>
             <div class="vrm-card" style="padding:10px 12px;">
               <div class="mp-name" style="margin-bottom:6px;">Write endpoint</div>
               <input class="sl-ep" id="sl-ep" type="url" spellcheck="false" autocapitalize="off"
@@ -2719,6 +2721,9 @@ function mqttHandle(topic,value){
     mpSet(inst,{state:Number(value)});
     if(_vrmSocReady)_vrmSocChart.setOption({dataset:{source:[[1,_vrmSocVal]]}}); return;
   }
+  if(parts[0]==='vebus'&&parts.length===3&&parts[2]==='ProductName'){
+    SL_NAMES[parseInt(parts[1])]=String(value); slUpdate(); return;
+  }
   if(parts[0]==='vebus'&&parts.length>=4){
     var vi=parseInt(parts[1]), vp=parts.slice(2).join('/'), n=Number(value);
     if(vp==='Ac/ActiveIn/L1/V'){if(vi===288)_mqttData.gV=n;else if(vi===276)_mqttData.g2V=n;mpSet(vi,{inV:n});}
@@ -2844,29 +2849,40 @@ setInterval(function(){
   if(ch)mpRender();
 },1000);
 
-// ── Shore input current limit ────────────────────────────────────────────────
-// The live limit rides in on the same /api/live feed as the gauges; Apply POSTs
-// to the Node-RED /shore-limit flow, then confirms from the feed (falling back
-// to the flow's own GET) so the card only turns green once the unit agrees.
-const SL_MAX_A = 30, SL_PRESETS = [15,20,25,30], SL_TOL = 0.6, SL_CONFIRM_MS = 8000;
-const SL_EP_DEFAULT = 'https://192.168.0.100:1881/shore-limit';
+// ── Shore input current limit ────────────────────────────────
+// A card appears for each vebus unit that reports a limit on the /api/live feed,
+// so a renumbered instance shows up on its own instead of leaving a blank card.
+// The ceiling is fixed at 50 A: the unit publishes its own max (and says 50) but
+// the bridge forwards only the "value" field, so the max never reaches us here.
+const SL_MAX_A = 50, SL_PRESETS = [15,20,25,30,50], SL_TOL = 0.6, SL_CONFIRM_MS = 8000;
+const SL_EP_DEFAULT = 'https://192.168.0.55:1881/shore-limit';
 var SL_EP = SL_EP_DEFAULT;
 try{SL_EP=localStorage.getItem('ss_sl_ep')||SL_EP_DEFAULT;}catch(e){}
-const SL = MP.map(function(u){return {name:u.name,inst:u.inst,lim:NaN,sel:NaN,touched:false,busy:false,msg:'',cls:''};});
+const SL = [], SL_IX = {}, SL_NAMES = {};   // cards, instance → card, instance → product name
 
 function slEl(i,k){return document.getElementById('sl'+i+'-'+k);}
+function slName(s){return SL_NAMES[s.inst]||('MultiPlus · '+s.inst);}
 function slLive(inst,n){
-  var i=MP_INST[inst]; if(i===undefined||!isFinite(n)) return;
+  if(!isFinite(n)) return;
+  var i=SL_IX[inst];
+  if(i===undefined){
+    i=SL_IX[inst]=SL.length;
+    SL.push({inst:inst,lim:NaN,sel:NaN,touched:false,busy:false,msg:'',cls:''});
+    slBuild();
+  }
   var s=SL[i]; s.lim=n;
   if(!s.touched) s.sel=n;     // card tracks the unit until you touch a preset or the slider
   slUpdate();
 }
 // Cards are built once and updated in place — re-rendering innerHTML would drop a slider mid-drag.
 function slBuild(){
+  var wrap=document.getElementById('sl-cards'); if(!wrap) return;
+  var empty=document.getElementById('sl-empty'); if(empty) empty.hidden=SL.length>0;
   SL.forEach(function(s,i){
-    var el=document.getElementById('sl'+i); if(!el||el.dataset.built) return;
-    el.dataset.built='1';
-    el.innerHTML='<div class="mp-hd"><span class="mp-name">'+s.name+'</span>'
+    if(document.getElementById('sl'+i)) return;
+    var el=document.createElement('div');
+    el.className='vrm-card'; el.id='sl'+i;
+    el.innerHTML='<div class="mp-hd"><span class="mp-name" id="sl'+i+'-name"></span>'
       +'<span class="mp-pill off" id="sl'+i+'-pill">No data</span></div>'
       +'<div class="sl-row" id="sl'+i+'-presets">'
       +SL_PRESETS.map(function(p){return '<button class="sl-preset" data-a="'+p+'" onclick="slPick('+i+','+p+',1)">'+p+'</button>';}).join('')
@@ -2877,6 +2893,7 @@ function slBuild(){
       +'<span class="sl-sel" id="sl'+i+'-val">&mdash;</span></div>'
       +'<button class="sl-apply" id="sl'+i+'-btn" onclick="slApply('+i+')" disabled>Apply</button>'
       +'<div class="sl-msg" id="sl'+i+'-msg"></div>';
+    wrap.appendChild(el);
   });
   var ep=document.getElementById('sl-ep'); if(ep&&!ep.value) ep.value=SL_EP;
   slUpdate();
@@ -2885,6 +2902,7 @@ function slUpdate(){
   SL.forEach(function(s,i){
     var pill=slEl(i,'pill'); if(!pill) return;
     var has=isFinite(s.lim);
+    slEl(i,'name').textContent=slName(s);
     pill.className='mp-pill '+(has?'shore':'off');
     pill.textContent=has?s.lim.toFixed(1)+' A limit':'No data';
     if(!isFinite(s.sel)) s.sel=has?s.lim:20;
