@@ -2988,10 +2988,14 @@ async function slApply(i){
   var a=Math.max(0,Math.min(SL_MAX_A,s.sel));
   s.busy=true; s.msg='writing '+a.toFixed(1)+' A\u2026'; s.cls=''; slUpdate();
   try{
+    // text/plain keeps this a CORS "simple request" so the browser sends no
+    // preflight: Node-RED on the Cerbo serves only GET and POST on this path.
+    // The body carries the vebus instance, never a unit number — the card
+    // order and the flow's numbering don't agree.
     var res=await fetchT(SL_EP,8000,{
       method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({instance:s.inst,unit:i+1,limit:a})
+      headers:{'Content-Type':'text/plain'},
+      body:JSON.stringify({instance:s.inst,limit:a})
     });
     if(!res.ok) throw new Error('HTTP '+res.status);
     var back=await slWaitLive(i,a,SL_CONFIRM_MS);

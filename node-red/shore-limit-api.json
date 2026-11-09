@@ -1,0 +1,281 @@
+[
+  {
+    "id": "shore-limit-api",
+    "type": "tab",
+    "label": "Shore limit API",
+    "disabled": false,
+    "info": "GET  /shore-limit  -> {\"276\": <A>, \"288\": <A>}\nPOST /shore-limit  <- {\"instance\": 276|288, \"limit\": <A>}\n\nRoutes on the vebus instance, never a unit number: the dashboard's\nL1 card is instance 288 (/dev/ttyUSB0) and L2 is 276 (/dev/ttyS4).\nClamped to 50 A, the max both units report.\n\nInstance 288 reports CurrentLimitIsAdjustable = 0, so writes to it\nare refused until 'Overruled by remote' is set in VEConfigure."
+  },
+  {
+    "id": "victron-client-id",
+    "type": "victron-client",
+    "showValues": true,
+    "contextStore": true,
+    "enablePolling": false
+  },
+  {
+    "id": "in276",
+    "type": "victron-input-vebus",
+    "z": "shore-limit-api",
+    "service": "com.victronenergy.vebus/276",
+    "path": "/Ac/ActiveIn/CurrentLimit",
+    "serviceObj": {
+      "service": "com.victronenergy.vebus/276",
+      "name": "MultiPlus #1 (ttyS4) limit"
+    },
+    "pathObj": {
+      "path": "/Ac/ActiveIn/CurrentLimit",
+      "name": "AC input current limit",
+      "type": "float"
+    },
+    "initial": "",
+    "name": "MultiPlus #1 (ttyS4) limit",
+    "onlyChanges": false,
+    "x": 190,
+    "y": 80,
+    "wires": [
+      [
+        "set276"
+      ]
+    ]
+  },
+  {
+    "id": "in288",
+    "type": "victron-input-vebus",
+    "z": "shore-limit-api",
+    "service": "com.victronenergy.vebus/288",
+    "path": "/Ac/ActiveIn/CurrentLimit",
+    "serviceObj": {
+      "service": "com.victronenergy.vebus/288",
+      "name": "Multiplus #2 (ttyUSB0) limit"
+    },
+    "pathObj": {
+      "path": "/Ac/ActiveIn/CurrentLimit",
+      "name": "AC input current limit",
+      "type": "float"
+    },
+    "initial": "",
+    "name": "Multiplus #2 (ttyUSB0) limit",
+    "onlyChanges": false,
+    "x": 190,
+    "y": 140,
+    "wires": [
+      [
+        "set288"
+      ]
+    ]
+  },
+  {
+    "id": "set276",
+    "type": "change",
+    "z": "shore-limit-api",
+    "name": "flow.lim276",
+    "rules": [
+      {
+        "t": "set",
+        "p": "lim276",
+        "pt": "flow",
+        "to": "payload",
+        "tot": "msg"
+      }
+    ],
+    "action": "",
+    "property": "",
+    "from": "",
+    "to": "",
+    "reg": false,
+    "x": 470,
+    "y": 80,
+    "wires": [
+      []
+    ]
+  },
+  {
+    "id": "set288",
+    "type": "change",
+    "z": "shore-limit-api",
+    "name": "flow.lim288",
+    "rules": [
+      {
+        "t": "set",
+        "p": "lim288",
+        "pt": "flow",
+        "to": "payload",
+        "tot": "msg"
+      }
+    ],
+    "action": "",
+    "property": "",
+    "from": "",
+    "to": "",
+    "reg": false,
+    "x": 470,
+    "y": 140,
+    "wires": [
+      []
+    ]
+  },
+  {
+    "id": "getin",
+    "type": "http in",
+    "z": "shore-limit-api",
+    "name": "",
+    "url": "/shore-limit",
+    "method": "get",
+    "upload": false,
+    "swaggerDoc": "",
+    "x": 170,
+    "y": 240,
+    "wires": [
+      [
+        "getfn"
+      ]
+    ]
+  },
+  {
+    "id": "getfn",
+    "type": "function",
+    "z": "shore-limit-api",
+    "name": "current limits",
+    "func": "// Build the reply the dashboard reads back after a write.\nmsg.payload = {\n    \"276\": flow.get(\"lim276\"),\n    \"288\": flow.get(\"lim288\")\n};\nmsg.headers = { \"Access-Control-Allow-Origin\": \"*\", \"Cache-Control\": \"no-store\" };\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 400,
+    "y": 240,
+    "wires": [
+      [
+        "resp"
+      ]
+    ]
+  },
+  {
+    "id": "postin",
+    "type": "http in",
+    "z": "shore-limit-api",
+    "name": "",
+    "url": "/shore-limit",
+    "method": "post",
+    "upload": false,
+    "swaggerDoc": "",
+    "x": 170,
+    "y": 320,
+    "wires": [
+      [
+        "postfn"
+      ]
+    ]
+  },
+  {
+    "id": "postfn",
+    "type": "function",
+    "z": "shore-limit-api",
+    "name": "validate + clamp",
+    "func": "// Validate, clamp, and route on the vebus INSTANCE (not a unit number):\n//   276 = MultiPlus #1 on /dev/ttyS4\n//   288 = Multiplus #2 on /dev/ttyUSB0\n// The dashboard posts text/plain on purpose, so the browser sends no CORS\n// preflight; that keeps this working without touching settings.js.\nconst MAX = 50;\nconst cors = { \"Access-Control-Allow-Origin\": \"*\", \"Cache-Control\": \"no-store\" };\n\nlet b = msg.payload;\nif (typeof b === \"string\") {\n    try { b = JSON.parse(b); } catch (e) { b = {}; }\n}\n\nconst inst = Number(b.instance);\nlet limit = Number(b.limit);\n\nif ([276, 288].indexOf(inst) < 0 || !isFinite(limit)) {\n    const bad = Object.assign({}, msg, {\n        statusCode: 400,\n        headers: cors,\n        payload: { ok: false, error: \"need instance 276 or 288 and a numeric limit\" }\n    });\n    return [null, bad];\n}\n\nlimit = Math.max(0, Math.min(MAX, limit));\n\nconst write = { payload: limit, instance: inst };\nconst reply = Object.assign({}, msg, {\n    statusCode: 200,\n    headers: cors,\n    payload: { ok: true, instance: inst, limit: limit }\n});\nreturn [write, reply];\n",
+    "outputs": 2,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 400,
+    "y": 320,
+    "wires": [
+      [
+        "route"
+      ],
+      [
+        "resp"
+      ]
+    ]
+  },
+  {
+    "id": "route",
+    "type": "switch",
+    "z": "shore-limit-api",
+    "name": "by instance",
+    "property": "instance",
+    "propertyType": "msg",
+    "rules": [
+      {
+        "t": "eq",
+        "v": "276",
+        "vt": "num"
+      },
+      {
+        "t": "eq",
+        "v": "288",
+        "vt": "num"
+      }
+    ],
+    "checkall": "false",
+    "repair": false,
+    "outputs": 2,
+    "x": 620,
+    "y": 320,
+    "wires": [
+      [
+        "out276"
+      ],
+      [
+        "out288"
+      ]
+    ]
+  },
+  {
+    "id": "out276",
+    "type": "victron-output-vebus",
+    "z": "shore-limit-api",
+    "service": "com.victronenergy.vebus/276",
+    "path": "/Ac/ActiveIn/CurrentLimit",
+    "serviceObj": {
+      "service": "com.victronenergy.vebus/276",
+      "name": "set MultiPlus #1 limit"
+    },
+    "pathObj": {
+      "path": "/Ac/ActiveIn/CurrentLimit",
+      "name": "AC input current limit",
+      "type": "float"
+    },
+    "initial": "",
+    "name": "set MultiPlus #1 limit",
+    "onlyChanges": false,
+    "x": 850,
+    "y": 290,
+    "wires": []
+  },
+  {
+    "id": "out288",
+    "type": "victron-output-vebus",
+    "z": "shore-limit-api",
+    "service": "com.victronenergy.vebus/288",
+    "path": "/Ac/ActiveIn/CurrentLimit",
+    "serviceObj": {
+      "service": "com.victronenergy.vebus/288",
+      "name": "set Multiplus #2 limit"
+    },
+    "pathObj": {
+      "path": "/Ac/ActiveIn/CurrentLimit",
+      "name": "AC input current limit",
+      "type": "float"
+    },
+    "initial": "",
+    "name": "set Multiplus #2 limit",
+    "onlyChanges": false,
+    "x": 850,
+    "y": 350,
+    "wires": []
+  },
+  {
+    "id": "resp",
+    "type": "http response",
+    "z": "shore-limit-api",
+    "name": "",
+    "statusCode": "",
+    "headers": {},
+    "x": 640,
+    "y": 240,
+    "wires": []
+  }
+]
