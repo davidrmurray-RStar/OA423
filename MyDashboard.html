@@ -2329,7 +2329,7 @@ function vrmSetBattCurrent(a){
   else if(v>0)stops=[[z,dim],[f,VRM_CHG_COLOR],[1,dim]];
   else stops=[[f,dim],[z,VRM_DIS_COLOR],[1,dim]];
   var idle=ok&&Math.abs(a)<0.5,word=!ok?'':idle?'IDLE':a>0?'CHARGING':'DISCHARGING';if(idle)col='#8b95a4';
-  _vrmBattChart.setOption({series:[{type:'gauge',radius:'96%',center:['50%','58%'],startAngle:220,endAngle:-40,min:mn,max:mx,splitNumber:6,
+  _vrmBattChart.setOption({animation:false,series:[{type:'gauge',animation:false,radius:'96%',center:['50%','58%'],startAngle:220,endAngle:-40,min:mn,max:mx,splitNumber:6,
     axisLine:{lineStyle:{width:14,color:stops}},progress:{show:false},
     pointer:{show:ok,icon:'rect',width:4,length:'20%',offsetCenter:[0,'-80%'],itemStyle:{color:'#fff',borderColor:'#0f1216',borderWidth:1}},anchor:{show:false},
     axisTick:{show:false},splitLine:{show:true,distance:2,length:8,lineStyle:{color:'rgba(255,255,255,0.30)',width:1.5}},
@@ -2337,7 +2337,7 @@ function vrmSetBattCurrent(a){
     title:{show:true,offsetCenter:[0,'30%'],fontSize:12,fontWeight:700,color:ok?col:'#8b95a4'},
     detail:{valueAnimation:false,offsetCenter:[0,'0%'],fontSize:24,fontWeight:700,fontFamily:"'DM Mono',monospace",color:ok?col:'#e6e9ee',
       formatter:function(){return ok?(a>0?'+':a<0?'\u2212':'')+Math.abs(a).toFixed(1)+' A':'\u2013';}},
-    data:[{value:v,name:word}]}]},{replaceMerge:['series']});
+    data:[{value:v,name:word}]}]});
 }
 function vrmBuildBattLegend(){
   var el=document.getElementById('vrm-battery-legend');if(!el)return;
