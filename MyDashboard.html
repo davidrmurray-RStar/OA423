@@ -2234,42 +2234,70 @@ function vrmZoneStops(zones,min,max){
   return stops;
 }
 
-// SOC hero gauge (image-reveal + custom graphic)
+// SOC hero gauge: "half bell" (rising half of a bell curve) filled left→right up to SOC.
+// Fill colour: green; amber below SOC_BELL_WARN %; red when battery voltage is in the low zone.
+// _vrmSocChart is a small shim so the existing setOption()/resize() call sites keep working.
 var _vrmSocChart=null,_vrmSocReady=false,_vrmSocVal=0,_vrmSocState='',_vrmSocState2='',_vrmSocTTG='',_vrmSocVolt=NaN;
+var SOC_BELL_WARN=25;
 (function(){
-  if(!window.echarts)return;
-  var outerR=200,innerR=170,ptrInner=40,insideR=140,MAX=100;
-  function gtxt(v){return(Math.max(0,v)/MAX*100).toFixed(0)+'%';}
-  function renderItem(params,api){
-    var soc=api.value(1);
-    var end=(soc/MAX)*2*Math.PI;  // SOC % → radians; arc + pointer sweep counter-clockwise from 3 o'clock
-    var cx=params.coordSys.cx,cy=params.coordSys.cy;
-    function pt(r,rad){return[Math.cos(rad)*r+cx,-Math.sin(rad)*r+cy];}
-    function ptrPts(ang){return[pt(outerR,ang),pt(outerR,ang+Math.PI*0.03),pt(ptrInner,ang)];}
-    var imgStyle={image:VRM_PANEL,x:cx-outerR,y:cy-outerR,width:outerR*2,height:outerR*2};
-    var v=_vrmSocVolt,lo=VRM_BATT_ZONES[0].upTo,warn=VRM_BATT_ZONES[1].upTo;
-    var pctColor  = isFinite(v)&&v<lo ? '#c03018' : isFinite(v)&&v<warn ? '#b07010' : 'rgb(0,50,190)';
-    var stColor   = isFinite(v)&&v<lo ? 'rgb(160,60,40)' : isFinite(v)&&v<warn ? 'rgb(150,100,20)' : 'rgb(90,108,150)';
-    var shadColor = isFinite(v)&&v<lo ? 'rgba(224,92,74,0.45)' : isFinite(v)&&v<warn ? 'rgba(200,146,42,0.45)' : 'rgba(76,107,167,0.4)';
-    return{type:'group',children:[
-      {type:'image',style:imgStyle,clipPath:{type:'sector',shape:{cx:cx,cy:cy,r:outerR,r0:innerR,startAngle:0,endAngle:-end,clockwise:false,transition:'endAngle',enterFrom:{endAngle:0}}}},
-      {type:'image',style:imgStyle,clipPath:{type:'polygon',shape:{points:ptrPts(end)},extra:{end:end,transition:'end',enterFrom:{end:0}},during:function(d){d.setShape('points',ptrPts(d.getExtra('end')));}}},
-      {type:'circle',shape:{cx:cx,cy:cy,r:insideR},style:{fill:'#fff',shadowBlur:25,shadowColor:shadColor}},
-      {type:'text',extra:{val:soc,transition:'val',enterFrom:{val:0}},style:{text:gtxt(soc),fontSize:50,fontWeight:700,x:cx,y:cy-26,fill:pctColor,align:'center',verticalAlign:'middle',enterFrom:{opacity:0}},during:function(d){d.setStyle('text',gtxt(d.getExtra('val')));}},
-      _vrmSocState2
-        ? {type:'group',children:[
-            {type:'text',style:{text:'#1 '+(_vrmSocState||'–').toUpperCase(),fontSize:15,fontWeight:700,x:cx,y:cy+12,fill:stColor,align:'center',verticalAlign:'middle'}},
-            {type:'text',style:{text:'#2 '+(_vrmSocState2||'–').toUpperCase(),fontSize:15,fontWeight:700,x:cx,y:cy+32,fill:stColor,align:'center',verticalAlign:'middle'}}
-          ]}
-        : {type:'text',style:{text:(_vrmSocState||'').toUpperCase(),fontSize:22,fontWeight:700,x:cx,y:cy+22,fill:stColor,align:'center',verticalAlign:'middle'}},
-      {type:'text',style:{text:_vrmSocTTG?'TIME TO GO '+_vrmSocTTG:'',fontSize:14,fontWeight:600,x:cx,y:cy+56,fill:'rgb(120,135,165)',align:'center',verticalAlign:'middle'}}
-    ]};
-  }
   var el=document.getElementById('gc-soc');if(!el)return;
-  _vrmSocChart=echarts.init(el);
-  _vrmSocChart.setOption({animationDuration:1000,animationDurationUpdate:1000,animationEasingUpdate:'quarticInOut',angleAxis:{type:'value',startAngle:0,show:false,min:0,max:MAX},radiusAxis:{type:'value',show:false},polar:{},tooltip:{},dataset:{source:[[1,_vrmSocVal]]},series:[{type:'custom',coordinateSystem:'polar',renderItem:renderItem}]});
-  _vrmSocReady=true;
-  window.addEventListener('resize',function(){_vrmSocChart&&_vrmSocChart.resize();});
+  var shown=0,anim=null;
+  var reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function shade(hex,f){var n=parseInt(hex.slice(1),16),r=n>>16,g=n>>8&255,b=n&255;
+    function c(x){return Math.max(0,Math.min(255,Math.round(f<0?x*(1+f):x+(255-x)*f)));}
+    return 'rgb('+c(r)+','+c(g)+','+c(b)+')';}
+  function fillColor(soc){
+    var v=_vrmSocVolt,lo=VRM_BATT_ZONES[0].upTo;
+    if(isFinite(v)&&v<lo)return VRM_BATT_ZONES[0].color;          // red
+    if(soc<SOC_BELL_WARN)return VRM_BATT_ZONES[1].color;          // amber
+    return VRM_BATT_ZONES[2].color;                               // green
+  }
+  function svg(soc){
+    var W=420,H=260,x0=20,x1=400,base=232,top=22,minH=10,sig=0.42,N=80,g0=Math.exp(-1/(2*sig*sig));
+    function yAt(f){var g=Math.exp(-Math.pow(1-f,2)/(2*sig*sig));return base-minH-(base-minH-top)*(g-g0)/(1-g0);}
+    function xAt(f){return x0+(x1-x0)*f;}
+    var pts=[];for(var i=0;i<=N;i++){var f=i/N;pts.push(xAt(f).toFixed(1)+','+yAt(f).toFixed(1));}
+    var shape='M'+x0+','+base+' L'+pts.join(' L')+' L'+x1+','+base+' Z';
+    var fx=xAt(soc/100),fy=yAt(soc/100),c=fillColor(soc),ticks='';
+    [25,50,75].forEach(function(p){var x=xAt(p/100);ticks+='<line x1="'+x+'" x2="'+x+'" y1="'+(base+4)+'" y2="'+(base+11)+'" stroke="#7a9bb0" stroke-width="2"/><text x="'+x+'" y="'+(base+24)+'" text-anchor="middle" font-size="12" fill="#7a9bb0" font-family="DM Mono,monospace">'+p+'</text>';});
+    return '<svg viewBox="0 0 '+W+' '+(H+10)+'" style="width:92%;display:block" role="img" aria-label="Battery '+Math.round(soc)+' percent">'+
+     '<defs><linearGradient id="socBellG" gradientUnits="userSpaceOnUse" x1="'+x0+'" x2="'+Math.max(fx,x0+1)+'" y1="0" y2="0">'+
+       '<stop offset="0" stop-color="'+shade(c,-0.55)+'"/><stop offset=".6" stop-color="'+c+'"/><stop offset="1" stop-color="'+shade(c,0.4)+'"/></linearGradient>'+
+     '<linearGradient id="socBellShine" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".22"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".25"/></linearGradient>'+
+     '<clipPath id="socBellClip"><rect x="0" y="0" width="'+fx+'" height="'+H+'"/></clipPath></defs>'+
+     '<path d="'+shape+'" fill="rgba(255,255,255,0.05)" stroke="rgba(122,155,176,0.35)" stroke-width="1.5"/>'+
+     '<g clip-path="url(#socBellClip)"><path d="'+shape+'" fill="url(#socBellG)"/><path d="'+shape+'" fill="url(#socBellShine)"/></g>'+
+     (soc>0?'<line x1="'+fx+'" x2="'+fx+'" y1="'+fy+'" y2="'+base+'" stroke="#fff" stroke-width="2.5" opacity=".85"/><circle cx="'+fx+'" cy="'+fy+'" r="6" fill="#fff"/>':'')+
+     '<line x1="'+x0+'" x2="'+x1+'" y1="'+base+'" y2="'+base+'" stroke="#7a9bb0" stroke-opacity=".5" stroke-width="1.5"/>'+ticks+
+     '<text x="'+(x0+6)+'" y="78" font-family="DM Sans,system-ui,sans-serif" font-weight="800" font-size="76" fill="var(--text)">'+Math.round(soc)+'%</text>'+
+    '</svg>';
+  }
+  el.style.display='flex';el.style.flexDirection='column';el.style.alignItems='center';el.style.justifyContent='center';el.style.gap='4px';
+  el.innerHTML='<div id="socBellG0" style="width:100%;display:flex;justify-content:center"></div>'+
+    '<div id="socBellV" style="font-family:\'DM Mono\',monospace;font-size:34px;font-weight:500;line-height:1.1"></div>'+
+    '<div id="socBellSt" style="font-size:18px;font-weight:700;letter-spacing:.08em;color:var(--text-dim);text-align:center;line-height:1.3"></div>'+
+    '<div id="socBellTTG" style="font-size:13px;font-weight:600;color:var(--text-dim)"></div>';
+  var gEl=document.getElementById('socBellG0'),vEl=document.getElementById('socBellV'),stEl=document.getElementById('socBellSt'),tEl=document.getElementById('socBellTTG');
+  function draw(soc){gEl.innerHTML=svg(soc);}
+  function text(){
+    var v=_vrmSocVolt;
+    vEl.textContent=isFinite(v)?v.toFixed(2)+' V':'';
+    vEl.style.color=isFinite(v)?(v<VRM_BATT_ZONES[0].upTo?VRM_BATT_ZONES[0].color:v<VRM_BATT_ZONES[1].upTo?VRM_BATT_ZONES[1].color:VRM_BATT_ZONES[2].color):'';
+    stEl.innerHTML=_vrmSocState2
+      ?'#1 '+(_vrmSocState||'–').toUpperCase()+'<br>#2 '+(_vrmSocState2||'–').toUpperCase()
+      :(_vrmSocState||'').toUpperCase();
+    tEl.textContent=_vrmSocTTG?'TIME TO GO '+_vrmSocTTG:'';
+  }
+  function update(){
+    text();var target=_vrmSocVal;
+    if(anim)cancelAnimationFrame(anim);
+    if(reduce||Math.abs(target-shown)<0.05){shown=target;draw(shown);return;}
+    var from=shown,t0=performance.now(),D=1000;
+    (function step(now){var t=Math.min(1,(now-t0)/D),e=t<.5?8*t*t*t*t:1-Math.pow(-2*t+2,4)/2;  // quarticInOut
+      shown=from+(target-from)*e;draw(shown);anim=t<1?requestAnimationFrame(step):null;})(t0);
+  }
+  _vrmSocChart={setOption:update,resize:function(){},dispose:function(){}};
+  _vrmSocReady=true;draw(0);text();
 })();
 function vrmSetSoc(soc,state,ttg,volt,state2){
   if(state!==undefined)_vrmSocState=state||'';
