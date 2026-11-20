@@ -460,7 +460,7 @@
           </div>
           <div>
             <div id="gc-battery" style="width:100%;height:185px;"></div>
-            <div class="vrm-card-label">Battery Bank Stats</div>
+            <div class="vrm-card-label">Battery Current</div>
             <div class="vrm-legend" id="vrm-battery-legend"></div>
           </div>
           <!-- temperature row: fills the space under the battery bank gauge -->
@@ -2318,15 +2318,35 @@ function _vrmZoneRing(spec){return{type:'gauge',radius:'100%',startAngle:220,end
 function _vrmAmpRing(spec){return{type:'gauge',radius:'62%',startAngle:220,endAngle:-40,min:spec.min,max:spec.max,splitNumber:2,axisLine:{lineStyle:{width:7,color:[[1,'rgba(242,179,56,0.22)']]}},progress:{show:false},pointer:{show:true,icon:'rect',width:3,length:'20%',offsetCenter:[0,'-84%'],itemStyle:{color:'#f2b338',borderColor:'#0f1216',borderWidth:1}},anchor:{show:false},axisTick:{show:false},splitLine:{show:true,distance:2,length:7,lineStyle:{color:'rgba(255,255,255,0.30)',width:1}},axisLabel:{show:true,distance:-2,color:'#8b95a4',fontSize:6,formatter:function(v){return Math.round(v);}},title:{show:false},detail:{valueAnimation:true,offsetCenter:[0,'24%'],formatter:function(v){return isFinite(v)?v.toFixed(spec.dp)+' '+spec.unit:'–';},fontSize:15,fontWeight:700,color:spec.color},data:[{value:spec.value}]};}
 function vrmSetDual(chart,outer,inner){if(!chart)return;chart.setOption({series:[outer.zones?_vrmZoneRing(outer):_vrmRing(outer,'100%','-16%'),inner.bipolar?_vrmAmpRing(inner):_vrmRing(inner,'62%','24%')]});}
 
+// Battery current gauge: 0 A at the top; the arc grows right (green) while charging
+// and left (amber) while discharging. Voltage now lives under the SOC half bell.
+var VRM_CHG_COLOR='#36c2a4',VRM_DIS_COLOR='#f2b338';
+function vrmSetBattCurrent(a){
+  if(!_vrmBattChart)return;
+  var mn=VRM_RANGES.battA[0],mx=VRM_RANGES.battA[1],ok=isFinite(a),v=ok?Math.max(mn,Math.min(mx,a)):0;
+  var z=(0-mn)/(mx-mn),f=(v-mn)/(mx-mn),dim='rgba(255,255,255,0.10)',col=v>=0?VRM_CHG_COLOR:VRM_DIS_COLOR,stops;
+  if(!ok||Math.abs(f-z)<0.002)stops=[[1,dim]];
+  else if(v>0)stops=[[z,dim],[f,VRM_CHG_COLOR],[1,dim]];
+  else stops=[[f,dim],[z,VRM_DIS_COLOR],[1,dim]];
+  var idle=ok&&Math.abs(a)<0.5,word=!ok?'':idle?'IDLE':a>0?'CHARGING':'DISCHARGING';if(idle)col='#8b95a4';
+  _vrmBattChart.setOption({series:[{type:'gauge',radius:'96%',center:['50%','58%'],startAngle:220,endAngle:-40,min:mn,max:mx,splitNumber:6,
+    axisLine:{lineStyle:{width:14,color:stops}},progress:{show:false},
+    pointer:{show:ok,icon:'rect',width:4,length:'20%',offsetCenter:[0,'-80%'],itemStyle:{color:'#fff',borderColor:'#0f1216',borderWidth:1}},anchor:{show:false},
+    axisTick:{show:false},splitLine:{show:true,distance:2,length:8,lineStyle:{color:'rgba(255,255,255,0.30)',width:1.5}},
+    axisLabel:{show:true,distance:16,color:'#8b95a4',fontSize:9,formatter:function(x){return x===0?'0':Math.abs(x)===mx||x===mn?(x>0?'+':'')+Math.round(x):'';}},
+    title:{show:true,offsetCenter:[0,'30%'],fontSize:12,fontWeight:700,color:ok?col:'#8b95a4'},
+    detail:{valueAnimation:false,offsetCenter:[0,'0%'],fontSize:24,fontWeight:700,fontFamily:"'DM Mono',monospace",color:ok?col:'#e6e9ee',
+      formatter:function(){return ok?(a>0?'+':a<0?'\u2212':'')+Math.abs(a).toFixed(1)+' A':'\u2013';}},
+    data:[{value:v,name:word}]}]},{replaceMerge:['series']});
+}
 function vrmBuildBattLegend(){
   var el=document.getElementById('vrm-battery-legend');if(!el)return;
-  var prev=VRM_RANGES.battV[0],html='';
-  VRM_BATT_ZONES.forEach(function(z,i){if(z.label){var range=i===0?'< '+z.upTo:z.upTo===Infinity?'> '+prev:prev+'–'+z.upTo;html+='<span><i style="width:10px;height:10px;border-radius:2px;display:inline-block;background:'+z.color+';margin-right:4px;vertical-align:middle;"></i>'+z.label+' ('+range+' V)</span>';} prev=z.upTo;});
-  el.innerHTML=html;
+  function sw(c,t){return '<span><i style="width:10px;height:10px;border-radius:2px;display:inline-block;background:'+c+';margin-right:4px;vertical-align:middle;"></i>'+t+'</span>';}
+  el.innerHTML=sw(VRM_CHG_COLOR,'charging (into batteries)')+sw(VRM_DIS_COLOR,'discharging (out of batteries)');
 }
 if(window.echarts){
   vrmBuildBattLegend();
-  vrmSetDual(_vrmBattChart,{value:NaN,min:VRM_RANGES.battV[0],max:VRM_RANGES.battV[1],unit:'V',dp:2,zones:VRM_BATT_ZONES},{value:NaN,min:VRM_RANGES.battA[0],max:VRM_RANGES.battA[1],unit:'A',color:'#f2b338',dp:2,bipolar:true});
+  vrmSetBattCurrent(NaN);
   vrmSetDual(_vrmGridChart,{value:NaN,min:VRM_RANGES.gridV[0],max:VRM_RANGES.gridV[1],unit:'V',color:'#36c2a4',dp:1},{value:NaN,min:VRM_RANGES.gridA[0],max:VRM_RANGES.gridA[1],unit:'A',color:'#f2b338',dp:1});
   vrmSetDual(_vrmGrid2Chart,{value:NaN,min:VRM_RANGES.grid2V[0],max:VRM_RANGES.grid2V[1],unit:'V',color:'#36c2a4',dp:1},{value:NaN,min:VRM_RANGES.grid2A[0],max:VRM_RANGES.grid2A[1],unit:'A',color:'#f2b338',dp:1});
   window.addEventListener('resize',function(){_vrmBattChart&&_vrmBattChart.resize();_vrmGridChart&&_vrmGridChart.resize();_vrmGrid2Chart&&_vrmGrid2Chart.resize();});
@@ -2557,7 +2577,7 @@ function vrmRender(records) {
   if (!_mqttConnected) {
     vrmSetSoc(socRec?vrmToNum(socRec):NaN,invState1,ttgTxt,vrmToNum(bV),invState2);
     const bI=vrmFind(records,{desc:'Current',device:'Battery Monitor',instance:shuntInst},{});
-    vrmSetDual(_vrmBattChart,{value:vrmToNum(bV),min:VRM_RANGES.battV[0],max:VRM_RANGES.battV[1],unit:'V',dp:2,zones:VRM_BATT_ZONES},{value:vrmToNum(bI),min:VRM_RANGES.battA[0],max:VRM_RANGES.battA[1],unit:'A',color:'#f2b338',dp:2,bipolar:true});
+    vrmSetBattCurrent(vrmToNum(bI));
   }
   if (!_mqttConnected) {
     const gV=vrmFind(records,{desc:'Input voltage phase 1',device:'VE.Bus System',instance:288},{});
@@ -2796,8 +2816,7 @@ function mqttTimestamp(){
 function mqttBattGauge(){
   var bV=_mqttData.battV,bI=_mqttData.battI;
   if(bV!==undefined)vrmSetSoc(_vrmSocVal,undefined,undefined,bV);
-  if(_vrmBattChart&&bV!==undefined)
-    _vrmBattChart.setOption({series:[{data:[{value:bV}]},{data:[{value:bI!==undefined?bI:NaN}]}]});
+  if(bI!==undefined)vrmSetBattCurrent(bI);
 }
 // ── MultiPlus flip gauges ────────────────────────────────────────────────────
 // Each unit auto-shows inverter OUTPUT (brass) when inverting and shore INPUT (blue) on shore.
