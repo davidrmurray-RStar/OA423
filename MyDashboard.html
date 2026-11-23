@@ -494,7 +494,7 @@
             </div>
             <div class="mp-t" style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;margin-top:12px;"><div class="l">12 V charge power</div><div class="v" id="sk-w" style="margin-top:0;">—</div></div>
           </div>
-          <!-- Shore input current limit: live value per unit, presets/slider, Apply writes via Node-RED -->
+          <!-- Shore input current limit: live value per unit, presets/slider, Apply writes via the tablet server (MQTT) -->
           <div class="pw-pane" id="pw-sl" hidden>
             <div id="sl-cards" style="display:flex;flex-direction:column;gap:12px;"></div>
             <div class="vrm-card" id="sl-empty" style="padding:12px;font-size:11px;color:var(--text-dim);line-height:1.5;">
@@ -506,8 +506,9 @@
                      onchange="slSetEndpoint(this.value)">
               <div class="sl-msg" id="sl-ep-msg"></div>
               <div style="font-size:10px;color:var(--text-dim);line-height:1.5;margin-top:4px;">
-                Needs &ldquo;Overruled by remote&rdquo; in VEConfigure. Accept the Cerbo&rsquo;s certificate in
-                the browser once, or the write shows offline.
+                Default <code>/api/shore-limit</code> sends the change through the tablet&rsquo;s own
+                connection to the Cerbo; no Node-RED needed. Each unit needs &ldquo;Overruled by remote&rdquo;
+                in VEConfigure. Clear the box to go back to the default.
               </div>
             </div>
           </div>
@@ -2780,6 +2781,7 @@ function mqttHandle(topic,value){
     else if(vp==='Ac/Out/L1/I')mpSet(vi,{outA:n});
     else if(vp==='Ac/ActiveIn/Connected')mpSet(vi,{connRaw:n});
     else if(vp==='Ac/ActiveIn/CurrentLimit')slLive(vi,n);
+    else if(vp==='Ac/ActiveIn/CurrentLimitIsAdjustable')slAdj(vi,n);
     else if(vp==='Dc/0/Current')mpSet(vi,{dcA:n});
     return;
   }
@@ -2903,12 +2905,21 @@ setInterval(function(){
 // The ceiling is fixed at 50 A: the unit publishes its own max (and says 50) but
 // the bridge forwards only the "value" field, so the max never reaches us here.
 const SL_MAX_A = 50, SL_PRESETS = [15,20,25,30,50], SL_TOL = 0.6, SL_CONFIRM_MS = 8000;
-const SL_EP_DEFAULT = 'https://192.168.0.55:1881/shore-limit';
+// Writes go to the tablet's own server, which publishes them on the Cerbo's MQTT
+// (the connection /api/live already reads from). Posting straight to Node-RED at
+// https://<cerbo>:1881 failed with "no answer": Chrome drops requests to the
+// Cerbo's self-signed certificate. A Node-RED URL can still be saved as an override.
+const SL_EP_DEFAULT = '/api/shore-limit';
+const SL_EP_OLD = 'https://192.168.0.55:1881/shore-limit';
 var SL_EP = SL_EP_DEFAULT;
-try{SL_EP=localStorage.getItem('ss_sl_ep')||SL_EP_DEFAULT;}catch(e){}
+try{
+  var _slSaved=localStorage.getItem('ss_sl_ep');
+  if(_slSaved===SL_EP_OLD){localStorage.removeItem('ss_sl_ep');_slSaved=null;}
+  SL_EP=_slSaved||SL_EP_DEFAULT;
+}catch(e){}
 const SL = [], SL_IX = {}, SL_NAMES = {};   // cards, instance → card, instance → product name
 function slUnit(inst,name){
-  return {inst:inst,name:name||'',lim:NaN,sel:NaN,touched:false,busy:false,msg:'',cls:''};
+  return {inst:inst,name:name||'',lim:NaN,adj:NaN,sel:NaN,touched:false,busy:false,msg:'',cls:''};
 }
 MP.forEach(function(u){ SL_IX[u.inst]=SL.length; SL.push(slUnit(u.inst,u.name)); });
 
@@ -2925,6 +2936,12 @@ function slLive(inst,n){
   var s=SL[i]; s.lim=n;
   if(!s.touched) s.sel=n;     // card tracks the unit until you touch a preset or the slider
   slUpdate();
+}
+// CurrentLimitIsAdjustable = 0 means the unit ignores remote writes until
+// "Overruled by remote" is ticked for it in VEConfigure.
+function slAdj(inst,n){
+  var i=SL_IX[inst]; if(i===undefined||!isFinite(n)) return;
+  SL[i].adj=n; slUpdate();
 }
 // Cards are built once and updated in place — re-rendering innerHTML would drop a slider mid-drag.
 function slBuild(){
@@ -2965,10 +2982,13 @@ function slUpdate(){
     });
     slEl(i,'val').textContent=s.sel.toFixed(1)+' A';
     var matches=has&&Math.abs(s.sel-s.lim)<0.05;
+    var locked=s.adj===0;
     var b=slEl(i,'btn');
-    b.disabled=s.busy||matches;
-    b.textContent=s.busy?'Applying\u2026':matches?'Matches unit':'Apply '+s.sel.toFixed(1)+' A';
-    var m=slEl(i,'msg'); m.className='sl-msg'+(s.cls?' '+s.cls:''); m.textContent=s.msg;
+    b.disabled=s.busy||matches||locked;
+    b.textContent=s.busy?'Applying\u2026':locked?'Locked on unit':matches?'Matches unit':'Apply '+s.sel.toFixed(1)+' A';
+    var msg=s.msg, cls=s.cls;
+    if(locked&&!msg){msg='set \u201cOverruled by remote\u201d in VEConfigure to allow changes';cls='err';}
+    var m=slEl(i,'msg'); m.className='sl-msg'+(cls?' '+cls:''); m.textContent=msg;
   });
 }
 function slPick(i,v,fromPreset){
@@ -3027,6 +3047,7 @@ function slErr(e){
   var m=String((e&&e.message)||e);
   if(/\b401\b/.test(m)) return '401 \u2014 Node-RED login covers this endpoint';
   if(/^HTTP /.test(m)) return m.toLowerCase();
+  if(!(e instanceof TypeError)&&!(e&&e.name==='AbortError')) return m;   // the server's own reason
   var origin=SL_EP.split('/').slice(0,3).join('/');
   return 'no answer from '+origin;
 }
@@ -3044,7 +3065,10 @@ async function slApply(i){
       headers:{'Content-Type':'text/plain'},
       body:JSON.stringify({instance:s.inst,limit:a})
     });
-    if(!res.ok) throw new Error('HTTP '+res.status);
+    if(!res.ok){
+      var why=''; try{why=(await res.json()).error||'';}catch(_){}
+      throw new Error(why||('HTTP '+res.status));
+    }
     var back=await slWaitLive(i,a,SL_CONFIRM_MS);
     if(!isFinite(back)) back=await slReadBack(s,i+1);
     s.busy=false;
@@ -3064,7 +3088,7 @@ async function slApply(i){
 function slSetEndpoint(v){
   SL_EP=String(v||'').trim()||SL_EP_DEFAULT;
   var ep=document.getElementById('sl-ep'); if(ep) ep.value=SL_EP;
-  try{localStorage.setItem('ss_sl_ep',SL_EP);}catch(e){}
+  try{if(SL_EP===SL_EP_DEFAULT)localStorage.removeItem('ss_sl_ep');else localStorage.setItem('ss_sl_ep',SL_EP);}catch(e){}
   var m=document.getElementById('sl-ep-msg');
   if(m){m.className='sl-msg ok';m.textContent='saved';setTimeout(function(){m.textContent='';m.className='sl-msg';},2000);}
 }

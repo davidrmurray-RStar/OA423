@@ -54,6 +54,9 @@ CERBO_PORTAL_ID = os.environ.get("CERBO_PORTAL_ID", "c0619abb114f")
 _live_cache: dict = {}
 _live_lock = threading.Lock()
 _live_connected = False
+_mqtt_client = None  # set once the bridge starts; used for shore-limit writes
+
+SHORE_LIMIT_MAX_A = 50.0
 
 
 def _mqtt_bridge_start():
@@ -98,6 +101,8 @@ def _mqtt_bridge_start():
     client.on_connect = on_connect
     client.on_disconnect = on_disconnect
     client.on_message = on_message
+    global _mqtt_client
+    _mqtt_client = client
 
     def keepalive_loop():
         while True:
@@ -191,6 +196,50 @@ class QuietServer(ThreadingHTTPServer):
         if isinstance(sys.exc_info()[1], (BrokenPipeError, ConnectionResetError)):
             return
         super().handle_error(request, client_address)
+
+
+def shore_limits() -> dict:
+    """{"<vebus instance>": {"limit": A, "adjustable": 0|1|None}} from the live cache."""
+    out = {}
+    with _live_lock:
+        for k, v in _live_cache.items():
+            p = k.split("/")
+            if len(p) == 5 and p[0] == "vebus" and p[2:] == ["Ac", "ActiveIn", "CurrentLimit"]:
+                adj = _live_cache.get(f"vebus/{p[1]}/Ac/ActiveIn/CurrentLimitIsAdjustable")
+                out[p[1]] = {"limit": v, "adjustable": adj}
+    return out
+
+
+def shore_limit_write(body: bytes):
+    """Set a MultiPlus AC input current limit by publishing a W/ topic on the
+    Cerbo's MQTT broker, the same connection /api/live reads from. This avoids
+    the browser talking to Node-RED on https://<cerbo>:1881, whose self-signed
+    certificate makes Chrome drop the request with no answer."""
+    try:
+        b = json.loads(body or b"{}")
+        inst = int(b.get("instance"))
+        limit = float(b.get("limit"))
+    except Exception:
+        return 400, {"ok": False, "error": "need instance and a numeric limit"}
+    if limit != limit:  # NaN
+        return 400, {"ok": False, "error": "need a numeric limit"}
+    units = shore_limits()
+    if str(inst) not in units:
+        return 404, {"ok": False, "error": f"MultiPlus {inst} is not reporting"}
+    if units[str(inst)]["adjustable"] == 0:
+        return 409, {"ok": False, "error": "unit is locked: set 'Overruled by remote' in VEConfigure"}
+    if not (_mqtt_client and _live_connected):
+        return 503, {"ok": False, "error": "tablet is not connected to the Cerbo"}
+    limit = max(0.0, min(SHORE_LIMIT_MAX_A, round(limit * 2) / 2))
+    topic = f"W/{CERBO_PORTAL_ID}/vebus/{inst}/Ac/ActiveIn/CurrentLimit"
+    try:
+        info = _mqtt_client.publish(topic, json.dumps({"value": limit}), qos=0)
+        if getattr(info, "rc", 0) != 0:
+            return 503, {"ok": False, "error": f"MQTT publish failed (rc {info.rc})"}
+    except Exception as e:
+        return 503, {"ok": False, "error": f"MQTT publish failed: {e}"}
+    print(f"shore limit: vebus {inst} -> {limit} A", file=sys.stderr)
+    return 200, {"ok": True, "instance": inst, "limit": limit}
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -293,6 +342,10 @@ class Handler(BaseHTTPRequestHandler):
             body = json.dumps({"ok": True, "connected": _live_connected, "data": data}).encode()
             return self._send(200, body, "application/json")
 
+        if path == "/api/shore-limit":
+            lims = {k: v["limit"] for k, v in shore_limits().items()}
+            return self._send(200, json.dumps(lims).encode(), "application/json")
+
         if path == "/api/version":
             repo = Path.home() / "OA423-repo"
             try:
@@ -348,6 +401,18 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(status, body, "application/json")
 
         self._send(404, b"not found", "text/plain")
+
+
+    def do_POST(self):
+        path = urlparse(self.path).path
+        if path != "/api/shore-limit":
+            return self._send(404, b"not found", "text/plain")
+        try:
+            n = min(int(self.headers.get("Content-Length") or 0), 4096)
+        except ValueError:
+            n = 0
+        status, reply = shore_limit_write(self.rfile.read(n) if n else b"")
+        return self._send(status, json.dumps(reply).encode(), "application/json")
 
 
 def watchdog(server):
